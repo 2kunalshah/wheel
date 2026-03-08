@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spin Wheel Admin</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell admin-shell">
+      <header class="hero">
+        <p class="badge">Admin Console</p>
+        <h1>Wheel Configuration</h1>
+        <p>Configure branding, form fields, prize odds, and QR access.</p>
+      </header>
+
+      <section class="card">
+        <h2 class="section-title">Event & Messaging</h2>
+        <div class="grid two-col">
+          <label>
+            Event Badge
+            <input id="cfgEventBadge" type="text" />
+          </label>
+          <label>
+            Headline
+            <input id="cfgHeadline" type="text" />
+          </label>
+          <label class="full-width">
+            Subheadline
+            <input id="cfgSubheadline" type="text" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Theme</h2>
+        <div class="grid three-col">
+          <label>
+            Primary
+            <input id="cfgPrimary" type="color" />
+          </label>
+          <label>
+            Accent
+            <input id="cfgAccent" type="color" />
+          </label>
+          <label>
+            Background
+            <input id="cfgBg" type="color" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Lead Form</h2>
+        <div id="fieldsEditor"></div>
+        <button id="addFieldBtn" type="button" class="btn btn-secondary">Add Field</button>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Prizes</h2>
+        <p class="hint">Weight controls odds. Inventory caps total wins for each prize.</p>
+        <div id="prizeEditor"></div>
+        <button id="addPrizeBtn" type="button" class="btn btn-secondary">Add Prize</button>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Wheel Behavior</h2>
+        <div class="grid three-col">
+          <label>
+            Spin Duration (ms)
+            <input id="cfgSpinDuration" type="number" min="1000" step="100" />
+          </label>
+          <label>
+            Minimum Rotations
+            <input id="cfgMinRotations" type="number" min="1" step="1" />
+          </label>
+          <label>
+            Maximum Rotations
+            <input id="cfgMaxRotations" type="number" min="1" step="1" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">QR Code</h2>
+        <p class="hint">Set the public URL where attendees land, then display this QR on signage.</p>
+        <div class="grid two-col">
+          <label class="full-width">
+            Public App URL
+            <input id="cfgPublicUrl" type="url" placeholder="https://yourdomain.com/index.html" />
+          </label>
+        </div>
+        <div class="qr-wrap">
+          <img id="qrImage" alt="QR code for player page" />
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Actions</h2>
+        <div class="button-row">
+          <button id="saveCfgBtn" type="button" class="btn btn-primary">Save Configuration</button>
+          <button id="resetCfgBtn" type="button" class="btn btn-secondary">Reset Defaults</button>
+          <button id="exportLeadsBtn" type="button" class="btn btn-accent">Export Leads CSV</button>
+          <button id="clearLeadsBtn" type="button" class="btn btn-danger">Clear Leads</button>
+        </div>
+        <p id="adminMessage" class="success-message" aria-live="polite"></p>
+      </section>
+
+      <footer class="footer-note">
+        <a href="./index.html">Back To Player View</a>
+      </footer>
+    </main>
+
+    <script src="./shared.js"></script>
+    <script src="./admin.js"></script>
+  </body>
+</html>

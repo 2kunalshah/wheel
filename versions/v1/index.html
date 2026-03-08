@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spin To Win</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="badge" id="eventBadge">Trade Show Giveaway</p>
+        <h1 id="headline">Spin The Wheel</h1>
+        <p id="subheadline">Enter your details for a chance to win.</p>
+      </header>
+
+      <section class="card" id="entrySection">
+        <h2 class="section-title">Enter To Play</h2>
+        <form id="leadForm" class="lead-form" novalidate></form>
+        <button id="startSpinBtn" class="btn btn-primary" type="button">Continue</button>
+        <p id="formError" class="error-message" aria-live="polite"></p>
+      </section>
+
+      <section class="card hidden" id="wheelSection">
+        <h2 class="section-title">Spin For Your Prize</h2>
+        <div class="wheel-wrapper">
+          <div class="pointer"></div>
+          <canvas id="wheelCanvas" width="520" height="520" aria-label="Prize wheel"></canvas>
+        </div>
+        <button id="spinBtn" class="btn btn-accent" type="button">Spin</button>
+      </section>
+
+      <section class="card hidden" id="resultSection">
+        <h2 class="section-title">You Won</h2>
+        <p id="resultMessage" class="result-message"></p>
+        <button id="playAgainBtn" class="btn btn-secondary" type="button">Play Again</button>
+      </section>
+
+      <footer class="footer-note">
+        <a href="./admin.html">Admin Configuration</a>
+      </footer>
+    </main>
+
+    <script src="./shared.js"></script>
+    <script src="./player.js"></script>
+  </body>
+</html>

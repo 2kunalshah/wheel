@@ -1,0 +1,254 @@
+:root {
+  --primary: #1357c4;
+  --accent: #ef3b2d;
+  --bg: #f5f8ff;
+  --text: #0f172a;
+  --card: #ffffff;
+  --muted: #5b6475;
+  --danger: #b42318;
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 20% 15%, #ffffff 0%, var(--bg) 50%, #d6e3ff 100%);
+}
+
+.app-shell {
+  width: min(980px, 92vw);
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.admin-shell {
+  width: min(1080px, 95vw);
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.badge {
+  display: inline-flex;
+  background: var(--primary);
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+h1 {
+  margin: 0.6rem 0 0.2rem;
+  font-size: clamp(1.7rem, 3vw, 2.7rem);
+}
+
+.hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 45px rgba(15, 23, 42, 0.1);
+  padding: 1.1rem;
+  margin: 1rem 0;
+}
+
+.section-title {
+  margin: 0 0 0.8rem;
+}
+
+.lead-form,
+.grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three-col {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input,
+select {
+  border: 1px solid #c8d0e0;
+  border-radius: 10px;
+  padding: 0.62rem 0.7rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn.small {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #e2e8f5;
+  color: #111827;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.error-message {
+  color: var(--danger);
+  min-height: 1.1rem;
+  margin-top: 0.5rem;
+}
+
+.success-message {
+  color: #166534;
+  min-height: 1.1rem;
+  margin-top: 0.5rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.wheel-wrapper {
+  position: relative;
+  width: min(520px, 86vw);
+  margin: 0 auto 0.9rem;
+}
+
+.wheel-wrapper canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 50%;
+  border: 7px solid #fff;
+  box-shadow: 0 8px 26px rgba(12, 16, 28, 0.2);
+}
+
+.pointer {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-top: 30px solid #0b1220;
+  z-index: 5;
+}
+
+.result-message {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.footer-note {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.footer-note a {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.editor-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 0.6rem;
+  align-items: end;
+  margin-bottom: 0.7rem;
+}
+
+.hint {
+  color: var(--muted);
+  margin: 0 0 0.7rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.qr-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.8rem;
+}
+
+.qr-wrap img {
+  width: 220px;
+  height: 220px;
+  border: 6px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(12, 16, 28, 0.15);
+}
+
+@media (max-width: 900px) {
+  .two-col,
+  .three-col {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-row {
+    grid-template-columns: 1fr;
+  }
+}
