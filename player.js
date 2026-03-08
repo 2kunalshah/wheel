@@ -183,6 +183,7 @@
       ...state.leadPayload,
       prizeId: prize.id,
       prizeName: prize.name,
+      wonPrizeName: prize.name,
     };
 
     store.addLead(lead, franchiseId);

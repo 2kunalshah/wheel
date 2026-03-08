@@ -161,8 +161,36 @@
             <input id="cfgPublicUrl" type="url" placeholder="https://yourdomain.com/index.html" />
           </label>
         </div>
+        <p class="hint">Franchise QR URL: <span id="qrTargetUrl"></span></p>
         <div class="qr-wrap">
           <img id="qrImage" alt="QR code for player page" />
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Participant Prize Lookup</h2>
+        <div class="grid two-col">
+          <label class="full-width">
+            Search participant or prize
+            <input id="leadSearchInput" type="text" placeholder="name, email, phone, or prize" />
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="refreshLeadsBtn" type="button" class="btn btn-secondary">Refresh Leads</button>
+        </div>
+        <div class="table-wrap">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>Captured</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Prize Won</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody"></tbody>
+          </table>
         </div>
       </section>
 

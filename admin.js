@@ -3,6 +3,7 @@
   const franchiseId = store.getFranchiseIdFromUrl();
   let config = store.getConfig(franchiseId);
   let serverFranchiseIds = [];
+  let leadsCache = [];
 
   const messageEl = document.getElementById("adminMessage");
   const fieldsEditor = document.getElementById("fieldsEditor");
@@ -33,6 +34,9 @@
     wheelCenterStrokeColor: document.getElementById("cfgWheelCenterStrokeColor"),
     publicUrl: document.getElementById("cfgPublicUrl"),
     qrImage: document.getElementById("qrImage"),
+    qrTargetUrl: document.getElementById("qrTargetUrl"),
+    leadSearchInput: document.getElementById("leadSearchInput"),
+    leadsTableBody: document.getElementById("leadsTableBody"),
   };
 
   bootstrap();
@@ -45,12 +49,15 @@
   document.getElementById("resetCfgBtn").addEventListener("click", resetConfig);
   document.getElementById("exportLeadsBtn").addEventListener("click", exportLeads);
   document.getElementById("clearLeadsBtn").addEventListener("click", clearLeads);
+  document.getElementById("refreshLeadsBtn").addEventListener("click", refreshLeadsLookup);
   refs.publicUrl.addEventListener("input", renderQr);
+  refs.leadSearchInput.addEventListener("input", renderLeadsTable);
 
   async function bootstrap() {
     await syncConfigFromServer();
     await syncFranchiseCatalogFromServer();
     hydrateForm();
+    await refreshLeadsLookup();
   }
 
   async function syncConfigFromServer() {
@@ -370,12 +377,66 @@
     const text = refs.publicUrl.value.trim();
     if (!text) {
       refs.qrImage.removeAttribute("src");
+      refs.qrTargetUrl.textContent = "";
       return;
     }
 
     const playerUrl = store.withFranchiseParam(text, franchiseId);
+    refs.qrTargetUrl.textContent = playerUrl;
     const encoded = encodeURIComponent(playerUrl);
     refs.qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encoded}`;
+  }
+
+  async function refreshLeadsLookup() {
+    try {
+      const response = await fetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = await response.json();
+      leadsCache = Array.isArray(payload.leads) ? payload.leads : [];
+    } catch (error) {
+      leadsCache = store.getLeads(franchiseId);
+    }
+    renderLeadsTable();
+  }
+
+  function renderLeadsTable() {
+    const search = refs.leadSearchInput.value.trim().toLowerCase();
+    const rows = leadsCache
+      .map((lead) => ({
+        capturedAt: lead.capturedAt || "",
+        name: lead.name || "",
+        phone: lead.phone || "",
+        email: lead.email || "",
+        prizeName: lead.wonPrizeName || lead.prizeName || lead.prizeId || "",
+      }))
+      .filter((lead) => {
+        if (!search) return true;
+        return [lead.name, lead.phone, lead.email, lead.prizeName].join(" ").toLowerCase().includes(search);
+      })
+      .sort((a, b) => (a.capturedAt < b.capturedAt ? 1 : -1));
+
+    refs.leadsTableBody.innerHTML = rows.length
+      ? rows
+          .map(
+            (lead) => `<tr>
+              <td>${escapeHtml(formatCapturedAt(lead.capturedAt))}</td>
+              <td>${escapeHtml(lead.name)}</td>
+              <td>${escapeHtml(lead.phone)}</td>
+              <td>${escapeHtml(lead.email)}</td>
+              <td>${escapeHtml(lead.prizeName)}</td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="5">No matching leads for this franchise.</td></tr>`;
+  }
+
+  function formatCapturedAt(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString();
   }
 
   async function exportLeads() {
@@ -431,6 +492,8 @@
       return;
     }
     store.clearLeads(franchiseId);
+    leadsCache = [];
+    renderLeadsTable();
     setMessage(`All leads cleared for '${franchiseId}'.`);
   }
 

@@ -11,6 +11,7 @@ A dependency-free web app to gamify prospect capture at events.
 - Admin page configures copy, theme, form fields, prize odds/inventory, wheel behavior, and QR link.
 - Admin page includes franchise location and address fields for booth-specific branding.
 - Multi-franchise mode: each franchise has isolated configuration and lead storage.
+- Admin includes a participant lookup table to see who won which prize.
 - Leads can be exported as CSV.
 
 ## Files
