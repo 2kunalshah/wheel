@@ -5,9 +5,11 @@ const { URL } = require("url");
 
 const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data", "leads");
+const LEADS_DIR = path.join(ROOT, "data", "leads");
+const CONFIGS_DIR = path.join(ROOT, "data", "configs");
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(LEADS_DIR, { recursive: true });
+fs.mkdirSync(CONFIGS_DIR, { recursive: true });
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -31,7 +33,11 @@ function safeFranchiseId(value) {
 }
 
 function leadsPath(franchiseId) {
-  return path.join(DATA_DIR, `${safeFranchiseId(franchiseId)}.json`);
+  return path.join(LEADS_DIR, `${safeFranchiseId(franchiseId)}.json`);
+}
+
+function configPath(franchiseId) {
+  return path.join(CONFIGS_DIR, `${safeFranchiseId(franchiseId)}.json`);
 }
 
 function readLeads(franchiseId) {
@@ -49,6 +55,34 @@ function readLeads(franchiseId) {
 function writeLeads(franchiseId, leads) {
   const file = leadsPath(franchiseId);
   fs.writeFileSync(file, JSON.stringify(leads, null, 2));
+}
+
+function readConfig(franchiseId) {
+  const file = configPath(franchiseId);
+  if (!fs.existsSync(file)) return null;
+  try {
+    const raw = fs.readFileSync(file, "utf8");
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeConfig(franchiseId, config) {
+  const file = configPath(franchiseId);
+  fs.writeFileSync(file, JSON.stringify(config, null, 2));
+}
+
+function listFranchiseIds() {
+  const ids = new Set();
+  [LEADS_DIR, CONFIGS_DIR].forEach((dir) => {
+    fs.readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .forEach((entry) => ids.add(safeFranchiseId(entry.name.replace(/\.json$/i, ""))));
+  });
+  if (!ids.size) ids.add("default");
+  return Array.from(ids).sort();
 }
 
 function toCsv(rows) {
@@ -118,6 +152,53 @@ function serveStatic(req, res, pathname) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/franchises" && req.method === "GET") {
+    sendJson(res, 200, { franchises: listFranchiseIds() });
+    return true;
+  }
+
+  if (url.pathname === "/api/franchises" && req.method === "POST") {
+    try {
+      const payload = await readJsonBody(req);
+      const franchiseId = safeFranchiseId(payload.franchiseId);
+      const existing = readConfig(franchiseId);
+      if (existing) {
+        sendJson(res, 409, { error: "Franchise already exists", franchiseId });
+        return true;
+      }
+      writeConfig(franchiseId, payload.baseConfig && typeof payload.baseConfig === "object" ? payload.baseConfig : {});
+      sendJson(res, 201, { ok: true, franchiseId });
+      return true;
+    } catch (e) {
+      sendJson(res, 400, { error: e.message });
+      return true;
+    }
+  }
+
+  if (url.pathname === "/api/config" && req.method === "GET") {
+    const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
+    const config = readConfig(franchiseId);
+    sendJson(res, 200, { franchiseId, config });
+    return true;
+  }
+
+  if (url.pathname === "/api/config" && req.method === "PUT") {
+    try {
+      const payload = await readJsonBody(req);
+      const franchiseId = safeFranchiseId(payload.franchiseId);
+      if (!payload.config || typeof payload.config !== "object") {
+        sendJson(res, 400, { error: "Missing config object" });
+        return true;
+      }
+      writeConfig(franchiseId, payload.config);
+      sendJson(res, 200, { ok: true, franchiseId });
+      return true;
+    } catch (e) {
+      sendJson(res, 400, { error: e.message });
+      return true;
+    }
+  }
+
   if (url.pathname === "/api/leads" && req.method === "GET") {
     const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
     const leads = readLeads(franchiseId);
@@ -198,5 +279,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Spin wheel server running at http://localhost:${PORT}`);
-  console.log(`Franchise lead files are stored in: ${DATA_DIR}`);
+  console.log(`Franchise lead files are stored in: ${LEADS_DIR}`);
+  console.log(`Franchise config files are stored in: ${CONFIGS_DIR}`);
 });

@@ -1,7 +1,7 @@
 (function () {
   const store = window.SpinWheelStore;
   const franchiseId = store.getFranchiseIdFromUrl();
-  const config = store.getConfig(franchiseId);
+  let config = store.getConfig(franchiseId);
 
   const entrySection = document.getElementById("entrySection");
   const wheelSection = document.getElementById("wheelSection");
@@ -22,13 +22,30 @@
     spinning: false,
   };
 
-  applyBranding(config);
-  buildForm(config);
-  drawWheel(config.prizes, state.currentRotation);
-
   startSpinBtn.addEventListener("click", handleContinue);
   spinBtn.addEventListener("click", handleSpin);
   playAgainBtn.addEventListener("click", resetFlow);
+  bootstrap();
+
+  async function bootstrap() {
+    await syncConfigFromServer();
+    applyBranding(config);
+    buildForm(config);
+    drawWheel(config.prizes, state.currentRotation);
+  }
+
+  async function syncConfigFromServer() {
+    try {
+      const response = await fetch(`/api/config?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (payload && payload.config && typeof payload.config === "object") {
+        config = store.saveConfig(payload.config, franchiseId);
+      }
+    } catch (error) {
+      // Local store remains fallback if server is unavailable.
+    }
+  }
 
   function applyBranding(cfg) {
     document.getElementById("eventBadge").textContent = cfg.eventBadge;

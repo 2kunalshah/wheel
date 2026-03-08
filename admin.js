@@ -2,6 +2,7 @@
   const store = window.SpinWheelStore;
   const franchiseId = store.getFranchiseIdFromUrl();
   let config = store.getConfig(franchiseId);
+  let serverFranchiseIds = [];
 
   const messageEl = document.getElementById("adminMessage");
   const fieldsEditor = document.getElementById("fieldsEditor");
@@ -34,7 +35,7 @@
     qrImage: document.getElementById("qrImage"),
   };
 
-  hydrateForm();
+  bootstrap();
 
   document.getElementById("createFranchiseBtn").addEventListener("click", createFranchise);
   refs.franchiseSelect.addEventListener("change", switchFranchise);
@@ -45,6 +46,38 @@
   document.getElementById("exportLeadsBtn").addEventListener("click", exportLeads);
   document.getElementById("clearLeadsBtn").addEventListener("click", clearLeads);
   refs.publicUrl.addEventListener("input", renderQr);
+
+  async function bootstrap() {
+    await syncConfigFromServer();
+    await syncFranchiseCatalogFromServer();
+    hydrateForm();
+  }
+
+  async function syncConfigFromServer() {
+    try {
+      const response = await fetch(`/api/config?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (payload && payload.config && typeof payload.config === "object") {
+        config = store.saveConfig(payload.config, franchiseId);
+      }
+    } catch (error) {
+      // Local store remains fallback if server is unavailable.
+    }
+  }
+
+  async function syncFranchiseCatalogFromServer() {
+    try {
+      const response = await fetch("/api/franchises");
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (payload && Array.isArray(payload.franchises)) {
+        serverFranchiseIds = payload.franchises.map((id) => store.resolveFranchiseId(id));
+      }
+    } catch (error) {
+      serverFranchiseIds = [];
+    }
+  }
 
   function hydrateForm() {
     renderFranchiseOptions();
@@ -83,7 +116,14 @@
   }
 
   function renderFranchiseOptions() {
-    const franchises = store.listFranchises();
+    const local = store.listFranchises();
+    const fromServer = serverFranchiseIds.map((id) => ({ id, name: id }));
+    const byId = new Map();
+    [...fromServer, ...local].forEach((f) => {
+      if (!byId.has(f.id)) byId.set(f.id, f);
+      if (f.name && f.name !== f.id) byId.set(f.id, f);
+    });
+    const franchises = Array.from(byId.values()).sort((a, b) => a.id.localeCompare(b.id));
     refs.franchiseSelect.innerHTML = franchises
       .map((f) => `<option value="${escapeHtml(f.id)}" ${f.id === franchiseId ? "selected" : ""}>${escapeHtml(f.name)} (${escapeHtml(f.id)})</option>`)
       .join("");
@@ -97,7 +137,7 @@
     window.location.assign(url.toString());
   }
 
-  function createFranchise() {
+  async function createFranchise() {
     const rawId = refs.newFranchiseId.value.trim();
     if (!rawId) {
       setMessage("Enter a franchise ID first.");
@@ -113,6 +153,23 @@
     const created = store.createFranchise(newId, baseConfig);
     if (!created) {
       setMessage(`Franchise '${newId}' already exists.`);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/franchises", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ franchiseId: newId, baseConfig }),
+      });
+      if (!response.ok && response.status !== 409) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      if (response.status === 409) {
+        setMessage(`Franchise '${newId}' exists on server. Switching to it.`);
+      }
+    } catch (error) {
+      setMessage(`Franchise '${newId}' created locally. Server sync failed.`);
       return;
     }
 
@@ -256,7 +313,7 @@
     renderPrizeEditor();
   }
 
-  function saveConfig() {
+  async function saveConfig() {
     config.eventBadge = refs.eventBadge.value.trim();
     config.headline = refs.headline.value.trim();
     config.subheadline = refs.subheadline.value.trim();
@@ -280,16 +337,33 @@
     config.publicUrl = refs.publicUrl.value.trim();
 
     config = store.saveConfig(config, franchiseId);
+    await persistConfigToServer(config);
     renderFieldsEditor();
     renderPrizeEditor();
     renderQr();
     setMessage(`Configuration saved for '${franchiseId}'.`);
   }
 
-  function resetConfig() {
+  async function resetConfig() {
     config = store.resetConfig(franchiseId);
+    await persistConfigToServer(config);
     hydrateForm();
     setMessage(`Configuration reset for '${franchiseId}'.`);
+  }
+
+  async function persistConfigToServer(nextConfig) {
+    try {
+      const response = await fetch("/api/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ franchiseId, config: nextConfig }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      setMessage(`Saved locally for '${franchiseId}'. Server sync failed.`);
+    }
   }
 
   function renderQr() {

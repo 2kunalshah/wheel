@@ -42,6 +42,7 @@ Then open:
 This server writes franchise lead files to:
 
 - `/Users/kunalshah/AI/wheel/data/leads/<franchise-id>.json`
+- `/Users/kunalshah/AI/wheel/data/configs/<franchise-id>.json` (admin settings per franchise)
 
 ## Configuration model
 
@@ -64,6 +65,7 @@ All settings are persisted in browser local storage and can be changed from Admi
 - Admin can create and switch franchise workspaces from the `Franchise Workspace` card.
 - Leads are stored and exported separately per franchise ID.
 - Each franchise lead list is also persisted to its own JSON file in `data/leads`.
+- The full admin configuration for each franchise is persisted separately in `data/configs`.
 
 ## Notes
 
