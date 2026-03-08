@@ -131,7 +131,8 @@ function serveStatic(req, res, pathname) {
   if (relPath === "/admin") relPath = "/admin.html";
   if (relPath === "/player") relPath = "/index.html";
   relPath = decodeURIComponent(relPath);
-  let filePath = path.join(ROOT, relPath);
+  const safeRelPath = relPath.replace(/^\/+/, "");
+  let filePath = path.join(ROOT, safeRelPath);
 
   if (!filePath.startsWith(ROOT)) {
     res.writeHead(403);
