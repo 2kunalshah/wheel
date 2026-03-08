@@ -128,13 +128,22 @@ function readJsonBody(req) {
 
 function serveStatic(req, res, pathname) {
   let relPath = pathname === "/" ? "/index.html" : pathname;
+  if (relPath === "/admin") relPath = "/admin.html";
+  if (relPath === "/player") relPath = "/index.html";
   relPath = decodeURIComponent(relPath);
-  const filePath = path.join(ROOT, relPath);
+  let filePath = path.join(ROOT, relPath);
 
   if (!filePath.startsWith(ROOT)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
+  }
+
+  if (!path.extname(filePath)) {
+    const htmlCandidate = `${filePath}.html`;
+    if (fs.existsSync(htmlCandidate)) {
+      filePath = htmlCandidate;
+    }
   }
 
   fs.stat(filePath, (err, stats) => {
