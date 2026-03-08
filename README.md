@@ -31,13 +31,17 @@ A dependency-free web app to gamify prospect capture at events.
 From the project root:
 
 ```bash
-python3 -m http.server 8080
+node server.js
 ```
 
 Then open:
 
 - Player: `http://localhost:8080/index.html`
 - Admin: `http://localhost:8080/admin.html`
+
+This server writes franchise lead files to:
+
+- `/Users/kunalshah/AI/wheel/data/leads/<franchise-id>.json`
 
 ## Configuration model
 
@@ -59,6 +63,7 @@ All settings are persisted in browser local storage and can be changed from Admi
 - Example admin URL: `http://localhost:8080/admin.html?franchise=houston-west`
 - Admin can create and switch franchise workspaces from the `Franchise Workspace` card.
 - Leads are stored and exported separately per franchise ID.
+- Each franchise lead list is also persisted to its own JSON file in `data/leads`.
 
 ## Notes
 

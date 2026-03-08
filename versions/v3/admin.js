@@ -304,28 +304,58 @@
     refs.qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encoded}`;
   }
 
-  function exportLeads() {
-    const leads = store.getLeads(franchiseId);
-    if (!leads.length) {
-      setMessage(`No leads to export for '${franchiseId}'.`);
-      return;
+  async function exportLeads() {
+    try {
+      const response = await fetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (!payload.count) {
+        setMessage(`No leads to export for '${franchiseId}'.`);
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = `/api/leads/download?franchise=${encodeURIComponent(franchiseId)}&format=csv`;
+      link.download = "";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setMessage(`Downloaded ${payload.count} leads for '${franchiseId}'.`);
+    } catch (error) {
+      const leads = store.getLeads(franchiseId);
+      if (!leads.length) {
+        setMessage(`No leads to export for '${franchiseId}'.`);
+        return;
+      }
+      const csv = store.toCsv(leads);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `trade-show-leads-${franchiseId}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMessage(`Server unavailable. Exported browser copy (${leads.length} leads).`);
     }
-
-    const csv = store.toCsv(leads);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `trade-show-leads-${franchiseId}-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    setMessage(`Exported ${leads.length} leads for '${franchiseId}'.`);
   }
 
-  function clearLeads() {
+  async function clearLeads() {
+    try {
+      const response = await fetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      setMessage(`Could not clear lead file for '${franchiseId}'.`);
+      return;
+    }
     store.clearLeads(franchiseId);
     setMessage(`All leads cleared for '${franchiseId}'.`);
   }

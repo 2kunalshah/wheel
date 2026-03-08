@@ -169,6 +169,7 @@
     };
 
     store.addLead(lead, franchiseId);
+    persistLeadToFile(lead);
 
     wheelSection.classList.add("hidden");
     resultSection.classList.remove("hidden");
@@ -184,6 +185,21 @@
 
     spinBtn.disabled = false;
     state.spinning = false;
+  }
+
+  async function persistLeadToFile(lead) {
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ franchiseId, lead }),
+      });
+      if (!response.ok) {
+        console.error("Lead file persistence failed", response.status);
+      }
+    } catch (error) {
+      console.error("Lead file persistence failed", error);
+    }
   }
 
   function resetFlow() {
