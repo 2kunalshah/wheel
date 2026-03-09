@@ -10,7 +10,6 @@
   const formError = document.getElementById("formError");
   const startSpinBtn = document.getElementById("startSpinBtn");
   const spinBtn = document.getElementById("spinBtn");
-  const playAgainBtn = document.getElementById("playAgainBtn");
   const resultMessage = document.getElementById("resultMessage");
   const resultPrizeImage = document.getElementById("resultPrizeImage");
   const canvas = document.getElementById("wheelCanvas");
@@ -26,7 +25,6 @@
 
   startSpinBtn.addEventListener("click", handleContinue);
   spinBtn.addEventListener("click", handleSpin);
-  playAgainBtn.addEventListener("click", resetFlow);
   bootstrap();
 
   async function bootstrap() {
@@ -225,15 +223,6 @@
     } catch (error) {
       console.error("Lead file persistence failed", error);
     }
-  }
-
-  function resetFlow() {
-    state.leadPayload = null;
-    leadForm.reset();
-    resultPrizeImage.removeAttribute("src");
-    resultPrizeImage.classList.add("hidden");
-    resultSection.classList.add("hidden");
-    entrySection.classList.remove("hidden");
   }
 
   function normalizeAngle(angle) {
