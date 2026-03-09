@@ -1,2 +1,3 @@
 data/leads/*.json
 data/configs/*.json
+.DS_Store
