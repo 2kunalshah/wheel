@@ -180,6 +180,7 @@
       id: `lead_${Date.now()}`,
       capturedAt: new Date().toISOString(),
       franchiseId,
+      eventName: config.eventName || config.eventBadge || "",
       ...state.leadPayload,
       prizeId: prize.id,
       prizeName: prize.name,

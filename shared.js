@@ -5,6 +5,7 @@
   const DEFAULT_FRANCHISE_ID = "default";
 
   const defaultConfig = {
+    eventName: "Trade Show Event",
     eventBadge: "Trade Show Giveaway",
     headline: "Spin The Wheel",
     subheadline: "Enter your details for a chance to win.",
@@ -83,6 +84,7 @@
 
   function normalizeConfig(candidate) {
     const merged = Object.assign({}, clone(defaultConfig), candidate || {});
+    merged.eventName = String((candidate && candidate.eventName) || defaultConfig.eventName);
     merged.theme = Object.assign({}, defaultConfig.theme, (candidate && candidate.theme) || {});
     merged.wheel = Object.assign({}, defaultConfig.wheel, (candidate && candidate.wheel) || {});
     merged.wheelStyle = Object.assign({}, defaultConfig.wheelStyle, (candidate && candidate.wheelStyle) || {});

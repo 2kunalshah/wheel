@@ -12,6 +12,7 @@
   const refs = {
     franchiseSelect: document.getElementById("cfgFranchiseSelect"),
     newFranchiseId: document.getElementById("cfgNewFranchiseId"),
+    eventName: document.getElementById("cfgEventName"),
     eventBadge: document.getElementById("cfgEventBadge"),
     headline: document.getElementById("cfgHeadline"),
     subheadline: document.getElementById("cfgSubheadline"),
@@ -89,6 +90,7 @@
   function hydrateForm() {
     renderFranchiseOptions();
 
+    refs.eventName.value = config.eventName || "";
     refs.eventBadge.value = config.eventBadge;
     refs.headline.value = config.headline;
     refs.subheadline.value = config.subheadline;
@@ -321,6 +323,7 @@
   }
 
   async function saveConfig() {
+    config.eventName = refs.eventName.value.trim();
     config.eventBadge = refs.eventBadge.value.trim();
     config.headline = refs.headline.value.trim();
     config.subheadline = refs.subheadline.value.trim();
@@ -406,6 +409,7 @@
     const rows = leadsCache
       .map((lead) => ({
         capturedAt: lead.capturedAt || "",
+        eventName: lead.eventName || config.eventName || "",
         name: lead.name || "",
         phone: lead.phone || "",
         email: lead.email || "",
@@ -413,7 +417,7 @@
       }))
       .filter((lead) => {
         if (!search) return true;
-        return [lead.name, lead.phone, lead.email, lead.prizeName].join(" ").toLowerCase().includes(search);
+        return [lead.eventName, lead.name, lead.phone, lead.email, lead.prizeName].join(" ").toLowerCase().includes(search);
       })
       .sort((a, b) => (a.capturedAt < b.capturedAt ? 1 : -1));
 
@@ -422,6 +426,7 @@
           .map(
             (lead) => `<tr>
               <td>${escapeHtml(formatCapturedAt(lead.capturedAt))}</td>
+              <td>${escapeHtml(lead.eventName)}</td>
               <td>${escapeHtml(lead.name)}</td>
               <td>${escapeHtml(lead.phone)}</td>
               <td>${escapeHtml(lead.email)}</td>
@@ -429,7 +434,7 @@
             </tr>`
           )
           .join("")
-      : `<tr><td colspan="5">No matching leads for this franchise.</td></tr>`;
+      : `<tr><td colspan="6">No matching leads for this franchise.</td></tr>`;
   }
 
   function formatCapturedAt(value) {
