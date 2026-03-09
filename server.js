@@ -23,6 +23,8 @@ const MIME_TYPES = {
   ".json": "application/json; charset=utf-8",
   ".ico": "image/x-icon",
 };
+const TEST_FRANCHISE_ID = "test-usa";
+const TEST_FRANCHISE_NAME = "Test, USA";
 
 function safeFranchiseId(value) {
   const id = String(value || "default")
@@ -75,6 +77,16 @@ function writeConfig(franchiseId, config) {
   fs.writeFileSync(file, JSON.stringify(config, null, 2));
 }
 
+function deleteConfig(franchiseId) {
+  const file = configPath(franchiseId);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+}
+
+function deleteLeads(franchiseId) {
+  const file = leadsPath(franchiseId);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+}
+
 function listFranchiseIds() {
   const ids = new Set();
   [LEADS_DIR, CONFIGS_DIR].forEach((dir) => {
@@ -96,6 +108,124 @@ function toCsv(rows) {
   const lines = [headers.join(",")];
   rows.forEach((row) => lines.push(headers.map((h) => escape(row[h])).join(",")));
   return lines.join("\n");
+}
+
+function ensureTestFranchise() {
+  const existing = readConfig(TEST_FRANCHISE_ID) || {};
+  const next = {
+    ...existing,
+    eventName: existing.eventName || "Unit Test Event",
+    eventBadge: existing.eventBadge || "Unit Test Booth",
+    headline: existing.headline || "Run Unit Tests",
+    subheadline: existing.subheadline || "Automated verification flow",
+    franchise: {
+      ...(existing.franchise || {}),
+      locationName: TEST_FRANCHISE_NAME,
+      city: (existing.franchise && existing.franchise.city) || "Test",
+      state: (existing.franchise && existing.franchise.state) || "USA",
+    },
+  };
+  writeConfig(TEST_FRANCHISE_ID, next);
+}
+
+function testCatalog() {
+  return [
+    { id: "config_round_trip", name: "Config Round Trip", description: "Config updates persist and reload for test franchise." },
+    { id: "lead_persists_prize", name: "Lead Stores Prize", description: "Lead records retain prize and participant fields." },
+    { id: "csv_contains_columns", name: "CSV Columns", description: "CSV export includes event, contact, and prize columns." },
+    { id: "franchise_isolation", name: "Franchise Isolation", description: "Writes in test franchise do not affect another franchise." },
+  ];
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+function runTestsForFranchise(franchiseId) {
+  const id = safeFranchiseId(franchiseId || TEST_FRANCHISE_ID);
+  const startedAt = new Date().toISOString();
+  const results = [];
+
+  const originalConfig = readConfig(id);
+  const originalLeads = readLeads(id);
+  const isolationId = "isolation-probe";
+  const originalIsolationLeads = readLeads(isolationId);
+
+  const run = (testId, fn) => {
+    const t0 = Date.now();
+    try {
+      fn();
+      results.push({ id: testId, status: "passed", durationMs: Date.now() - t0 });
+    } catch (error) {
+      results.push({ id: testId, status: "failed", durationMs: Date.now() - t0, error: error.message });
+    }
+  };
+
+  try {
+    ensureTestFranchise();
+
+    run("config_round_trip", () => {
+      const current = readConfig(id) || {};
+      const updated = { ...current, eventName: "Unit Test Event Alpha", franchise: { ...(current.franchise || {}), locationName: TEST_FRANCHISE_NAME } };
+      writeConfig(id, updated);
+      const reloaded = readConfig(id);
+      assert(reloaded && reloaded.eventName === "Unit Test Event Alpha", "eventName did not persist for test franchise");
+      assert(reloaded && reloaded.franchise && reloaded.franchise.locationName === TEST_FRANCHISE_NAME, "franchise name did not persist");
+    });
+
+    run("lead_persists_prize", () => {
+      const lead = {
+        id: `unit_${Date.now()}`,
+        capturedAt: new Date().toISOString(),
+        franchiseId: id,
+        eventName: "Unit Test Event Alpha",
+        name: "Unit Tester",
+        phone: "5551112222",
+        email: "unit@test.example",
+        prizeId: "unit_prize",
+        prizeName: "Unit Prize",
+        wonPrizeName: "Unit Prize",
+      };
+      writeLeads(id, [lead]);
+      const [saved] = readLeads(id);
+      assert(saved && saved.name === "Unit Tester", "participant name not persisted");
+      assert(saved && (saved.wonPrizeName || saved.prizeName) === "Unit Prize", "prize name not persisted");
+    });
+
+    run("csv_contains_columns", () => {
+      const csv = toCsv(readLeads(id));
+      assert(csv.includes("eventName"), "CSV missing eventName column");
+      assert(csv.includes("email"), "CSV missing email column");
+      assert(csv.includes("wonPrizeName") || csv.includes("prizeName"), "CSV missing prize column");
+    });
+
+    run("franchise_isolation", () => {
+      writeLeads(isolationId, [{ id: "iso", name: "Iso User" }]);
+      const testLeads = readLeads(id);
+      const isolationLeads = readLeads(isolationId);
+      assert(testLeads.length === 1, "test franchise lead count changed unexpectedly");
+      assert(isolationLeads.length === 1, "isolation lead write failed");
+      assert(testLeads[0].id !== isolationLeads[0].id, "franchise data leakage detected");
+    });
+  } finally {
+    if (originalConfig) writeConfig(id, originalConfig);
+    else deleteConfig(id);
+    if (Array.isArray(originalLeads) && originalLeads.length) writeLeads(id, originalLeads);
+    else deleteLeads(id);
+    if (Array.isArray(originalIsolationLeads) && originalIsolationLeads.length) writeLeads(isolationId, originalIsolationLeads);
+    else deleteLeads(isolationId);
+  }
+
+  const passed = results.filter((r) => r.status === "passed").length;
+  return {
+    franchiseId: id,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    total: results.length,
+    passed,
+    failed: results.length - passed,
+    results,
+  };
 }
 
 function sendJson(res, status, payload) {
@@ -163,6 +293,28 @@ function serveStatic(req, res, pathname) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/tests" && req.method === "GET") {
+    ensureTestFranchise();
+    sendJson(res, 200, {
+      franchiseId: TEST_FRANCHISE_ID,
+      franchiseName: TEST_FRANCHISE_NAME,
+      tests: testCatalog(),
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/tests/run" && req.method === "POST") {
+    try {
+      const payload = await readJsonBody(req);
+      const franchiseId = safeFranchiseId((payload && payload.franchiseId) || TEST_FRANCHISE_ID);
+      const report = runTestsForFranchise(franchiseId);
+      sendJson(res, 200, report);
+    } catch (e) {
+      sendJson(res, 500, { error: e.message });
+    }
+    return true;
+  }
+
   if (url.pathname === "/api/franchises" && req.method === "GET") {
     sendJson(res, 200, { franchises: listFranchiseIds() });
     return true;
@@ -288,8 +440,11 @@ const server = http.createServer(async (req, res) => {
   serveStatic(req, res, url.pathname);
 });
 
+ensureTestFranchise();
+
 server.listen(PORT, () => {
   console.log(`Spin wheel server running at http://localhost:${PORT}`);
   console.log(`Franchise lead files are stored in: ${LEADS_DIR}`);
   console.log(`Franchise config files are stored in: ${CONFIGS_DIR}`);
+  console.log(`Unit test franchise ready: ${TEST_FRANCHISE_NAME} (${TEST_FRANCHISE_ID})`);
 });

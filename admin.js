@@ -1,9 +1,11 @@
 (function () {
   const store = window.SpinWheelStore;
   const franchiseId = store.getFranchiseIdFromUrl();
+  const testFranchiseId = "test-usa";
   let config = store.getConfig(franchiseId);
   let serverFranchiseIds = [];
   let leadsCache = [];
+  let testsCache = [];
 
   const messageEl = document.getElementById("adminMessage");
   const fieldsEditor = document.getElementById("fieldsEditor");
@@ -38,6 +40,9 @@
     qrTargetUrl: document.getElementById("qrTargetUrl"),
     leadSearchInput: document.getElementById("leadSearchInput"),
     leadsTableBody: document.getElementById("leadsTableBody"),
+    testsTableBody: document.getElementById("testsTableBody"),
+    testResultsTableBody: document.getElementById("testResultsTableBody"),
+    testSummary: document.getElementById("testSummary"),
   };
 
   bootstrap();
@@ -51,6 +56,8 @@
   document.getElementById("exportLeadsBtn").addEventListener("click", exportLeads);
   document.getElementById("clearLeadsBtn").addEventListener("click", clearLeads);
   document.getElementById("refreshLeadsBtn").addEventListener("click", refreshLeadsLookup);
+  document.getElementById("loadTestsBtn").addEventListener("click", loadTests);
+  document.getElementById("runTestsBtn").addEventListener("click", runTests);
   refs.publicUrl.addEventListener("input", renderQr);
   refs.leadSearchInput.addEventListener("input", renderLeadsTable);
 
@@ -59,6 +66,7 @@
     await syncFranchiseCatalogFromServer();
     hydrateForm();
     await refreshLeadsLookup();
+    await loadTests();
   }
 
   async function syncConfigFromServer() {
@@ -442,6 +450,69 @@
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString();
+  }
+
+  async function loadTests() {
+    try {
+      const response = await fetch("/api/tests");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      testsCache = Array.isArray(payload.tests) ? payload.tests : [];
+      renderTestsTable();
+      refs.testSummary.textContent = `Loaded ${testsCache.length} tests for Test, USA (${testFranchiseId}).`;
+    } catch (error) {
+      testsCache = [];
+      renderTestsTable();
+      refs.testSummary.textContent = "Could not load tests.";
+    }
+  }
+
+  function renderTestsTable() {
+    refs.testsTableBody.innerHTML = testsCache.length
+      ? testsCache
+          .map(
+            (test) => `<tr>
+              <td>${escapeHtml(test.id)}</td>
+              <td>${escapeHtml(test.name)}</td>
+              <td>${escapeHtml(test.description || "")}</td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="3">No tests loaded.</td></tr>`;
+  }
+
+  async function runTests() {
+    refs.testSummary.textContent = "Running tests...";
+    try {
+      const response = await fetch("/api/tests/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ franchiseId: testFranchiseId }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const report = await response.json();
+      renderTestResults(report);
+      refs.testSummary.textContent = `Test run complete for Test, USA (${testFranchiseId}): ${report.passed}/${report.total} passed, ${report.failed} failed.`;
+    } catch (error) {
+      refs.testResultsTableBody.innerHTML = `<tr><td colspan="4">Test execution failed.</td></tr>`;
+      refs.testSummary.textContent = "Test execution failed.";
+    }
+  }
+
+  function renderTestResults(report) {
+    const rows = Array.isArray(report.results) ? report.results : [];
+    refs.testResultsTableBody.innerHTML = rows.length
+      ? rows
+          .map(
+            (result) => `<tr>
+              <td>${escapeHtml(result.status)}</td>
+              <td>${escapeHtml(result.id)}</td>
+              <td>${escapeHtml(String(result.durationMs || 0))}</td>
+              <td>${escapeHtml(result.error || "")}</td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4">No test results.</td></tr>`;
   }
 
   async function exportLeads() {
