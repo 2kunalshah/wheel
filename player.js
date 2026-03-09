@@ -20,6 +20,8 @@
     leadPayload: null,
     currentRotation: 0,
     spinning: false,
+    audioContext: null,
+    previousPointerSegment: -1,
   };
 
   startSpinBtn.addEventListener("click", handleContinue);
@@ -142,7 +144,9 @@
     }
 
     state.spinning = true;
+    state.previousPointerSegment = getPointerSegmentIndex(state.currentRotation, config.prizes.length);
     spinBtn.disabled = true;
+    startSpinAudio();
 
     const targetIndex = config.prizes.findIndex((p) => p.id === chosenPrize.id);
     const segmentSize = (Math.PI * 2) / config.prizes.length;
@@ -163,6 +167,7 @@
       const t = Math.min(1, elapsed / duration);
       const eased = easeOutCubic(t);
       state.currentRotation = startRotation + (finalRotation - startRotation) * eased;
+      playSegmentTickIfNeeded(state.currentRotation, config.prizes.length);
       drawWheel(config.prizes, state.currentRotation);
 
       if (t < 1) {
@@ -204,6 +209,7 @@
 
     spinBtn.disabled = false;
     state.spinning = false;
+    playFinishChime();
   }
 
   async function persistLeadToFile(lead) {
@@ -282,5 +288,72 @@
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  function getAudioContext() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!state.audioContext) {
+      state.audioContext = new AudioCtx();
+    }
+    return state.audioContext;
+  }
+
+  function startSpinAudio() {
+    const ctxAudio = getAudioContext();
+    if (!ctxAudio) return;
+    if (ctxAudio.state === "suspended") {
+      ctxAudio.resume().catch(() => {});
+    }
+  }
+
+  function playSegmentTickIfNeeded(rotation, segmentCount) {
+    const index = getPointerSegmentIndex(rotation, segmentCount);
+    if (index === state.previousPointerSegment) return;
+    state.previousPointerSegment = index;
+    playTick();
+  }
+
+  function getPointerSegmentIndex(rotation, segmentCount) {
+    const twoPi = Math.PI * 2;
+    const normalized = ((rotation % twoPi) + twoPi) % twoPi;
+    const pointerAngle = (Math.PI * 1.5 - normalized + twoPi) % twoPi;
+    const segmentSize = twoPi / segmentCount;
+    return Math.floor(pointerAngle / segmentSize);
+  }
+
+  function playTick() {
+    const ctxAudio = getAudioContext();
+    if (!ctxAudio) return;
+    const now = ctxAudio.currentTime;
+    const osc = ctxAudio.createOscillator();
+    const gain = ctxAudio.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(1200, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+    osc.connect(gain);
+    gain.connect(ctxAudio.destination);
+    osc.start(now);
+    osc.stop(now + 0.03);
+  }
+
+  function playFinishChime() {
+    const ctxAudio = getAudioContext();
+    if (!ctxAudio) return;
+    const now = ctxAudio.currentTime;
+    const osc = ctxAudio.createOscillator();
+    const gain = ctxAudio.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(740, now);
+    osc.frequency.exponentialRampToValueAtTime(980, now + 0.22);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+    osc.connect(gain);
+    gain.connect(ctxAudio.destination);
+    osc.start(now);
+    osc.stop(now + 0.28);
   }
 })();
