@@ -200,6 +200,41 @@
       </section>
 
       <section class="card">
+        <h2 class="section-title">Unit Tests</h2>
+        <p class="hint">Automated tests run against franchise <strong>Test, USA</strong> (`test-usa`).</p>
+        <div class="button-row">
+          <button id="loadTestsBtn" type="button" class="btn btn-secondary">Load Tests</button>
+          <button id="runTestsBtn" type="button" class="btn btn-accent">Run Tests</button>
+        </div>
+        <div class="table-wrap">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>Test ID</th>
+                <th>Name</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="testsTableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>Result</th>
+                <th>Test ID</th>
+                <th>Duration (ms)</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody id="testResultsTableBody"></tbody>
+          </table>
+        </div>
+        <p id="testSummary" class="hint"></p>
+      </section>
+
+      <section class="card">
         <h2 class="section-title">Actions</h2>
         <div class="button-row">
           <button id="saveCfgBtn" type="button" class="btn btn-primary">Save Configuration</button>
