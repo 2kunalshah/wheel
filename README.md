@@ -45,6 +45,11 @@ This server writes franchise lead files to:
 - `/Users/kunalshah/AI/wheel/data/leads/<franchise-id>.json`
 - `/Users/kunalshah/AI/wheel/data/configs/<franchise-id>.json` (admin settings per franchise)
 
+On Railway, data is written under `/app/data` by default (mount your persistent volume there):
+
+- `/app/data/leads/<franchise-id>.json`
+- `/app/data/configs/<franchise-id>.json`
+
 ## Configuration model
 
 All settings are persisted in browser local storage and can be changed from Admin:

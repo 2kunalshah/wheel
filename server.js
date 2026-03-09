@@ -5,8 +5,9 @@ const { URL } = require("url");
 
 const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
-const LEADS_DIR = path.join(ROOT, "data", "leads");
-const CONFIGS_DIR = path.join(ROOT, "data", "configs");
+const DATA_ROOT = process.env.DATA_ROOT || (process.env.RAILWAY_ENVIRONMENT ? "/app/data" : path.join(ROOT, "data"));
+const LEADS_DIR = path.join(DATA_ROOT, "leads");
+const CONFIGS_DIR = path.join(DATA_ROOT, "configs");
 
 fs.mkdirSync(LEADS_DIR, { recursive: true });
 fs.mkdirSync(CONFIGS_DIR, { recursive: true });
