@@ -267,19 +267,9 @@
     const emailMatch = normalized.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const phoneMatch = findPhoneNumber(normalized);
 
-    let name = "";
-    for (const line of lines) {
-      if (line.includes("@")) continue;
-      if (/www\.|http/i.test(line)) continue;
-      if (/\d/.test(line)) continue;
-      if (line.length > 40) continue;
-      if (line.length < 3) continue;
-      name = line;
-      break;
-    }
-
     const email = emailMatch ? emailMatch[0] : "";
     const phone = phoneMatch || "";
+    const name = findBestName(lines, email);
 
     return {
       name,
@@ -312,5 +302,61 @@
       return last10;
     }
     return "";
+  }
+
+  function findBestName(lines, email) {
+    const banned = /(llc|inc|ltd|company|corp|co\.|pllc|pc|clinic|wellness|franchise|center|group|office|suite|owner|director|manager|president|ceo|cfo|cto|vp|sales|marketing|founder)/i;
+    const candidates = [];
+
+    for (const raw of lines) {
+      if (raw.includes("@")) continue;
+      if (/www\.|http/i.test(raw)) continue;
+      if (/\d/.test(raw)) continue;
+      if (raw.length < 3 || raw.length > 40) continue;
+      if (banned.test(raw)) continue;
+
+      const cleaned = raw.replace(/[^a-zA-Z\s'-]/g, " ").replace(/\s+/g, " ").trim();
+      if (cleaned.length < 3) continue;
+
+      const words = cleaned.split(" ");
+      if (words.length > 4) continue;
+
+      const score = scoreName(cleaned);
+      candidates.push({ value: cleaned, score });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    const best = candidates[0] ? normalizeName(candidates[0].value) : "";
+
+    if (best) return best;
+
+    if (email) {
+      const local = email.split("@")[0] || "";
+      const guess = local.replace(/[._-]+/g, " ").replace(/\d+/g, " ").trim();
+      return normalizeName(guess);
+    }
+
+    return "";
+  }
+
+  function scoreName(value) {
+    const words = value.split(" ");
+    let score = 0;
+    if (words.length >= 2 && words.length <= 3) score += 3;
+    if (words.length === 1) score += 1;
+    if (value.length >= 6 && value.length <= 24) score += 2;
+    const capWords = words.filter((w) => /^[A-Z]/.test(w)).length;
+    score += capWords;
+    return score;
+  }
+
+  function normalizeName(value) {
+    if (!value) return "";
+    const cleaned = value.replace(/[^a-zA-Z\s'-]/g, " ").replace(/\s+/g, " ").trim();
+    if (!cleaned) return "";
+    return cleaned
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   }
 })();
