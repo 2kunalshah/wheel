@@ -25,6 +25,8 @@
 
   startSpinBtn.addEventListener("click", handleContinue);
   spinBtn.addEventListener("click", handleSpin);
+  canvas.addEventListener("click", handleSpin);
+  canvas.addEventListener("touchstart", handleSpin, { passive: true });
   bootstrap();
 
   async function bootstrap() {

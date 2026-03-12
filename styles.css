@@ -217,6 +217,7 @@ select {
   border-radius: 50%;
   border: 7px solid #fff;
   box-shadow: 0 8px 26px rgba(12, 16, 28, 0.2);
+  cursor: pointer;
 }
 
 .pointer {
