@@ -8,9 +8,11 @@ const ROOT = __dirname;
 const DATA_ROOT = process.env.DATA_ROOT || (process.env.RAILWAY_ENVIRONMENT ? "/app/data" : path.join(ROOT, "data"));
 const LEADS_DIR = path.join(DATA_ROOT, "leads");
 const CONFIGS_DIR = path.join(DATA_ROOT, "configs");
+const RAFFLES_DIR = path.join(DATA_ROOT, "raffles");
 
 fs.mkdirSync(LEADS_DIR, { recursive: true });
 fs.mkdirSync(CONFIGS_DIR, { recursive: true });
+fs.mkdirSync(RAFFLES_DIR, { recursive: true });
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -41,6 +43,10 @@ function leadsPath(franchiseId) {
 
 function configPath(franchiseId) {
   return path.join(CONFIGS_DIR, `${safeFranchiseId(franchiseId)}.json`);
+}
+
+function rafflePath(franchiseId) {
+  return path.join(RAFFLES_DIR, `${safeFranchiseId(franchiseId)}.json`);
 }
 
 function readLeads(franchiseId) {
@@ -77,6 +83,30 @@ function writeConfig(franchiseId, config) {
   fs.writeFileSync(file, JSON.stringify(config, null, 2));
 }
 
+function readRaffle(franchiseId) {
+  const file = rafflePath(franchiseId);
+  if (!fs.existsSync(file)) {
+    return { entries: [], winners: [], drawnAt: "", drawingInProgress: false };
+  }
+  try {
+    const raw = fs.readFileSync(file, "utf8");
+    const parsed = JSON.parse(raw);
+    return {
+      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+      winners: Array.isArray(parsed.winners) ? parsed.winners : [],
+      drawnAt: typeof parsed.drawnAt === "string" ? parsed.drawnAt : "",
+      drawingInProgress: Boolean(parsed.drawingInProgress),
+    };
+  } catch (e) {
+    return { entries: [], winners: [], drawnAt: "", drawingInProgress: false };
+  }
+}
+
+function writeRaffle(franchiseId, raffle) {
+  const file = rafflePath(franchiseId);
+  fs.writeFileSync(file, JSON.stringify(raffle, null, 2));
+}
+
 function deleteConfig(franchiseId) {
   const file = configPath(franchiseId);
   if (fs.existsSync(file)) fs.unlinkSync(file);
@@ -89,7 +119,7 @@ function deleteLeads(franchiseId) {
 
 function listFranchiseIds() {
   const ids = new Set();
-  [LEADS_DIR, CONFIGS_DIR].forEach((dir) => {
+  [LEADS_DIR, CONFIGS_DIR, RAFFLES_DIR].forEach((dir) => {
     fs.readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
       .forEach((entry) => ids.add(safeFranchiseId(entry.name.replace(/\.json$/i, ""))));
@@ -108,6 +138,48 @@ function toCsv(rows) {
   const lines = [headers.join(",")];
   rows.forEach((row) => lines.push(headers.map((h) => escape(row[h])).join(",")));
   return lines.join("\n");
+}
+
+function raffleConfigFromConfig(config) {
+  const cfg = config && typeof config === "object" ? config : {};
+  const raffle = cfg.raffle && typeof cfg.raffle === "object" ? cfg.raffle : {};
+  const prizes = Array.isArray(raffle.prizes) ? raffle.prizes : [];
+  const normalizedPrizes = prizes.slice(0, 3).map((prize, idx) => String(prize || `Prize ${idx + 1}`));
+  while (normalizedPrizes.length < 3) normalizedPrizes.push(`Prize ${normalizedPrizes.length + 1}`);
+  return {
+    title: String(raffle.title || "Live Raffle"),
+    description: String(raffle.description || "Enter for your chance to win."),
+    drawAt: String(raffle.drawAt || ""),
+    acceptEntries: raffle.acceptEntries !== false,
+    prizes: normalizedPrizes,
+  };
+}
+
+function shuffle(array) {
+  const next = array.slice();
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+function drawRaffleWinners(entries, prizes) {
+  const pool = shuffle(entries.filter((entry) => entry && typeof entry === "object"));
+  const winners = [];
+  for (let i = 0; i < prizes.length; i += 1) {
+    if (!pool.length) break;
+    const entry = pool.shift();
+    winners.push({
+      prize: prizes[i],
+      name: String(entry.name || ""),
+      email: String(entry.email || ""),
+      phone: String(entry.phone || ""),
+      entryId: String(entry.id || ""),
+      enteredAt: String(entry.enteredAt || ""),
+    });
+  }
+  return winners;
 }
 
 function ensureTestFranchise() {
@@ -423,6 +495,148 @@ async function handleApi(req, res, url) {
     return true;
   }
 
+  if (url.pathname === "/api/raffle/status" && req.method === "GET") {
+    const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
+    const config = readConfig(franchiseId);
+    const raffleConfig = raffleConfigFromConfig(config);
+    const raffle = readRaffle(franchiseId);
+    sendJson(res, 200, {
+      franchiseId,
+      raffle: raffleConfig,
+      entriesCount: raffle.entries.length,
+      drawnAt: raffle.drawnAt || "",
+      winners: raffle.winners,
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/raffle/entries" && req.method === "GET") {
+    const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
+    const raffle = readRaffle(franchiseId);
+    sendJson(res, 200, { franchiseId, count: raffle.entries.length, entries: raffle.entries });
+    return true;
+  }
+
+  if (url.pathname === "/api/raffle/entries" && req.method === "POST") {
+    try {
+      const payload = await readJsonBody(req);
+      const franchiseId = safeFranchiseId(payload.franchiseId);
+      const entry = payload.entry;
+      if (!entry || typeof entry !== "object") {
+        sendJson(res, 400, { error: "Missing entry object" });
+        return true;
+      }
+
+      const name = String(entry.name || "").trim();
+      const email = String(entry.email || "").trim();
+      const phone = String(entry.phone || "").trim();
+      if (!name || !email || !phone) {
+        sendJson(res, 400, { error: "Name, email, and phone are required" });
+        return true;
+      }
+
+      const config = readConfig(franchiseId);
+      const raffleConfig = raffleConfigFromConfig(config);
+      if (!raffleConfig.acceptEntries) {
+        sendJson(res, 403, { error: "Raffle entries are currently closed" });
+        return true;
+      }
+
+      const raffle = readRaffle(franchiseId);
+      const safeEntry = {
+        id: `raffle_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+        franchiseId,
+        enteredAt: new Date().toISOString(),
+        name,
+        email,
+        phone,
+      };
+      raffle.entries.push(safeEntry);
+      writeRaffle(franchiseId, raffle);
+
+      // Also persist to the main leads file so admin lead table includes raffle entries.
+      const leads = readLeads(franchiseId);
+      leads.push({
+        id: safeEntry.id,
+        capturedAt: safeEntry.enteredAt,
+        franchiseId,
+        eventName: raffleConfig.title || "Raffle Entry",
+        raffleTitle: raffleConfig.title,
+        name: safeEntry.name,
+        phone: safeEntry.phone,
+        email: safeEntry.email,
+        prizeId: "raffle_entry",
+        prizeName: "Raffle Entry",
+        wonPrizeName: "Raffle Entry",
+      });
+      writeLeads(franchiseId, leads);
+
+      sendJson(res, 201, { ok: true, franchiseId, count: raffle.entries.length });
+      return true;
+    } catch (e) {
+      sendJson(res, 400, { error: e.message });
+      return true;
+    }
+  }
+
+  if (url.pathname === "/api/raffle/draw" && req.method === "POST") {
+    try {
+      const payload = await readJsonBody(req);
+      const franchiseId = safeFranchiseId(payload.franchiseId);
+      const config = readConfig(franchiseId);
+      const raffleConfig = raffleConfigFromConfig(config);
+      const raffle = readRaffle(franchiseId);
+      const winners = drawRaffleWinners(raffle.entries, raffleConfig.prizes);
+      raffle.winners = winners;
+      raffle.drawnAt = new Date().toISOString();
+      writeRaffle(franchiseId, raffle);
+      sendJson(res, 200, { ok: true, franchiseId, drawnAt: raffle.drawnAt, winners, entriesCount: raffle.entries.length });
+      return true;
+    } catch (e) {
+      sendJson(res, 400, { error: e.message });
+      return true;
+    }
+  }
+
+  if (url.pathname === "/api/raffle/reset" && req.method === "POST") {
+    try {
+      const payload = await readJsonBody(req);
+      const franchiseId = safeFranchiseId(payload.franchiseId);
+      writeRaffle(franchiseId, { entries: [], winners: [], drawnAt: "", drawingInProgress: false });
+      sendJson(res, 200, { ok: true, franchiseId });
+      return true;
+    } catch (e) {
+      sendJson(res, 400, { error: e.message });
+      return true;
+    }
+  }
+
+  if (url.pathname === "/api/raffle/download" && req.method === "GET") {
+    const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
+    const format = String(url.searchParams.get("format") || "csv").toLowerCase();
+    const raffle = readRaffle(franchiseId);
+    const date = new Date().toISOString().slice(0, 10);
+
+    if (format === "json") {
+      const filename = `raffle-entries-${franchiseId}-${date}.json`;
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename=\"${filename}\"`,
+      });
+      res.end(JSON.stringify(raffle.entries, null, 2));
+      return true;
+    }
+
+    const csv = toCsv(raffle.entries);
+    const filename = `raffle-entries-${franchiseId}-${date}.csv`;
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename=\"${filename}\"`,
+    });
+    res.end(csv);
+    return true;
+  }
+
   return false;
 }
 
@@ -446,5 +660,6 @@ server.listen(PORT, () => {
   console.log(`Spin wheel server running at http://localhost:${PORT}`);
   console.log(`Franchise lead files are stored in: ${LEADS_DIR}`);
   console.log(`Franchise config files are stored in: ${CONFIGS_DIR}`);
+  console.log(`Franchise raffle files are stored in: ${RAFFLES_DIR}`);
   console.log(`Unit test franchise ready: ${TEST_FRANCHISE_NAME} (${TEST_FRANCHISE_ID})`);
 });

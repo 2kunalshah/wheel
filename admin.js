@@ -6,6 +6,7 @@
   let serverFranchiseIds = [];
   let leadsCache = [];
   let testsCache = [];
+  let raffleStatus = { entriesCount: 0, winners: [], drawnAt: "" };
 
   const messageEl = document.getElementById("adminMessage");
   const fieldsEditor = document.getElementById("fieldsEditor");
@@ -36,6 +37,17 @@
     wheelCenterFillColor: document.getElementById("cfgWheelCenterFillColor"),
     wheelCenterStrokeColor: document.getElementById("cfgWheelCenterStrokeColor"),
     publicUrl: document.getElementById("cfgPublicUrl"),
+    raffleTitle: document.getElementById("cfgRaffleTitle"),
+    raffleDescription: document.getElementById("cfgRaffleDescription"),
+    rafflePrize1: document.getElementById("cfgRafflePrize1"),
+    rafflePrize2: document.getElementById("cfgRafflePrize2"),
+    rafflePrize3: document.getElementById("cfgRafflePrize3"),
+    raffleDrawAt: document.getElementById("cfgRaffleDrawAt"),
+    raffleAcceptEntries: document.getElementById("cfgRaffleAcceptEntries"),
+    raffleUrl: document.getElementById("cfgRaffleUrl"),
+    raffleTargetUrl: document.getElementById("raffleTargetUrl"),
+    raffleSummary: document.getElementById("raffleSummary"),
+    raffleWinnersTableBody: document.getElementById("raffleWinnersTableBody"),
     qrImage: document.getElementById("qrImage"),
     qrTargetUrl: document.getElementById("qrTargetUrl"),
     leadSearchInput: document.getElementById("leadSearchInput"),
@@ -58,7 +70,11 @@
   document.getElementById("refreshLeadsBtn").addEventListener("click", refreshLeadsLookup);
   document.getElementById("loadTestsBtn").addEventListener("click", loadTests);
   document.getElementById("runTestsBtn").addEventListener("click", runTests);
+  document.getElementById("runRaffleBtn").addEventListener("click", runRaffleDraw);
+  document.getElementById("resetRaffleBtn").addEventListener("click", resetRaffle);
+  document.getElementById("exportRaffleEntriesBtn").addEventListener("click", exportRaffleEntries);
   refs.publicUrl.addEventListener("input", renderQr);
+  refs.raffleUrl.addEventListener("input", renderRaffleLink);
   refs.leadSearchInput.addEventListener("input", renderLeadsTable);
 
   async function bootstrap() {
@@ -66,6 +82,7 @@
     await syncFranchiseCatalogFromServer();
     hydrateForm();
     await refreshLeadsLookup();
+    await refreshRaffleStatus();
     await loadTests();
   }
 
@@ -119,6 +136,14 @@
     refs.wheelSeparatorColor.value = config.wheelStyle.separatorColor;
     refs.wheelCenterFillColor.value = config.wheelStyle.centerFillColor;
     refs.wheelCenterStrokeColor.value = config.wheelStyle.centerStrokeColor;
+    refs.raffleTitle.value = (config.raffle && config.raffle.title) || "Live Raffle";
+    refs.raffleDescription.value = (config.raffle && config.raffle.description) || "Enter for your chance to win.";
+    refs.rafflePrize1.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[0]) || "Prize 1";
+    refs.rafflePrize2.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[1]) || "Prize 2";
+    refs.rafflePrize3.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[2]) || "Prize 3";
+    refs.raffleAcceptEntries.checked = !(config.raffle && config.raffle.acceptEntries === false);
+    refs.raffleDrawAt.value = toDateTimeLocal(config.raffle && config.raffle.drawAt);
+    refs.raffleUrl.value = config.raffleUrl || "";
 
     const defaultPublic = `${window.location.origin}${window.location.pathname.replace("admin.html", "index.html")}`;
     refs.publicUrl.value = config.publicUrl || store.withFranchiseParam(defaultPublic, franchiseId);
@@ -130,6 +155,7 @@
     renderFieldsEditor();
     renderPrizeEditor();
     renderQr();
+    renderRaffleLink();
   }
 
   function renderFranchiseOptions() {
@@ -353,12 +379,24 @@
     config.wheelStyle.centerFillColor = refs.wheelCenterFillColor.value;
     config.wheelStyle.centerStrokeColor = refs.wheelCenterStrokeColor.value;
     config.publicUrl = refs.publicUrl.value.trim();
+    config.raffleUrl = refs.raffleUrl.value.trim();
+    config.raffle = config.raffle || {};
+    config.raffle.title = refs.raffleTitle.value.trim() || "Live Raffle";
+    config.raffle.description = refs.raffleDescription.value.trim() || "Enter for your chance to win.";
+    config.raffle.prizes = [
+      refs.rafflePrize1.value.trim() || "Prize 1",
+      refs.rafflePrize2.value.trim() || "Prize 2",
+      refs.rafflePrize3.value.trim() || "Prize 3",
+    ];
+    config.raffle.drawAt = fromDateTimeLocal(refs.raffleDrawAt.value);
+    config.raffle.acceptEntries = refs.raffleAcceptEntries.checked;
 
     config = store.saveConfig(config, franchiseId);
     await persistConfigToServer(config);
     renderFieldsEditor();
     renderPrizeEditor();
     renderQr();
+    renderRaffleLink();
     setMessage(`Configuration saved for '${franchiseId}'.`);
   }
 
@@ -396,6 +434,102 @@
     refs.qrTargetUrl.textContent = playerUrl;
     const encoded = encodeURIComponent(playerUrl);
     refs.qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encoded}`;
+  }
+
+  function renderRaffleLink() {
+    const base = refs.raffleUrl.value.trim() || `${window.location.origin}/raffle.html`;
+    const raffleUrl = store.withFranchiseParam(base, franchiseId);
+    refs.raffleTargetUrl.textContent = raffleUrl;
+    const raffleLink = document.querySelector('.footer-note a[href="./raffle.html"]');
+    if (raffleLink) raffleLink.href = `./raffle.html?franchise=${encodeURIComponent(franchiseId)}`;
+  }
+
+  async function refreshRaffleStatus() {
+    try {
+      const response = await fetch(`/api/raffle/status?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      raffleStatus = {
+        entriesCount: Number(payload.entriesCount) || 0,
+        winners: Array.isArray(payload.winners) ? payload.winners : [],
+        drawnAt: payload.drawnAt || "",
+      };
+      renderRaffleWinners();
+      refs.raffleSummary.textContent = raffleStatus.drawnAt
+        ? `Entries: ${raffleStatus.entriesCount}. Last draw: ${formatCapturedAt(raffleStatus.drawnAt)}.`
+        : `Entries: ${raffleStatus.entriesCount}. Draw has not run yet.`;
+    } catch (error) {
+      raffleStatus = { entriesCount: 0, winners: [], drawnAt: "" };
+      renderRaffleWinners();
+      refs.raffleSummary.textContent = "Could not load raffle status.";
+    }
+  }
+
+  function renderRaffleWinners() {
+    const winners = raffleStatus.winners || [];
+    refs.raffleWinnersTableBody.innerHTML = winners.length
+      ? winners
+          .map(
+            (winner) => `<tr>
+              <td>${escapeHtml(winner.prize || "")}</td>
+              <td>${escapeHtml(winner.name || "")}</td>
+              <td>${escapeHtml(winner.email || "")}</td>
+              <td>${escapeHtml(winner.phone || "")}</td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4">No winners selected yet.</td></tr>`;
+  }
+
+  async function runRaffleDraw() {
+    try {
+      const response = await fetch("/api/raffle/draw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ franchiseId }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await refreshRaffleStatus();
+      setMessage(`Raffle draw completed for '${franchiseId}'.`);
+    } catch (error) {
+      setMessage("Raffle draw failed.");
+    }
+  }
+
+  async function resetRaffle() {
+    try {
+      const response = await fetch("/api/raffle/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ franchiseId }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await refreshRaffleStatus();
+      setMessage(`Raffle reset for '${franchiseId}'.`);
+    } catch (error) {
+      setMessage("Could not reset raffle.");
+    }
+  }
+
+  async function exportRaffleEntries() {
+    try {
+      const response = await fetch(`/api/raffle/entries?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      if (!(payload.count > 0)) {
+        setMessage(`No raffle entries to export for '${franchiseId}'.`);
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = `/api/raffle/download?franchise=${encodeURIComponent(franchiseId)}&format=csv`;
+      link.download = "";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setMessage(`Downloaded ${payload.count} raffle entries for '${franchiseId}'.`);
+    } catch (error) {
+      setMessage("Raffle export failed.");
+    }
   }
 
   async function refreshLeadsLookup() {
@@ -589,5 +723,20 @@
       .replace(/>/g, "&gt;")
       .replace(/\"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  function toDateTimeLocal(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function fromDateTimeLocal(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString();
   }
 })();

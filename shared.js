@@ -24,6 +24,7 @@
       bg: "#f5f5f3",
     },
     publicUrl: "",
+    raffleUrl: "",
     fields: [
       { id: "name", label: "Full Name", type: "text", required: true, enabled: true },
       { id: "phone", label: "Phone Number", type: "tel", required: true, enabled: true },
@@ -46,6 +47,13 @@
       centerFillColor: "#ffffff",
       centerStrokeColor: "#0e1222",
       pointerColor: "#19272d",
+    },
+    raffle: {
+      title: "Live Raffle",
+      description: "Enter for your chance to win.",
+      drawAt: "",
+      acceptEntries: true,
+      prizes: ["Grand Prize", "Second Prize", "Third Prize"],
     },
   };
 
@@ -89,7 +97,9 @@
     merged.wheel = Object.assign({}, defaultConfig.wheel, (candidate && candidate.wheel) || {});
     merged.wheelStyle = Object.assign({}, defaultConfig.wheelStyle, (candidate && candidate.wheelStyle) || {});
     merged.franchise = Object.assign({}, defaultConfig.franchise, (candidate && candidate.franchise) || {});
+    merged.raffle = Object.assign({}, defaultConfig.raffle, (candidate && candidate.raffle) || {});
     merged.logoPath = String((candidate && candidate.logoPath) || defaultConfig.logoPath);
+    merged.raffleUrl = String((candidate && candidate.raffleUrl) || "");
 
     if (!Array.isArray(merged.fields) || merged.fields.length === 0) {
       merged.fields = clone(defaultConfig.fields);
@@ -127,6 +137,17 @@
     merged.wheelStyle.centerFillColor = isHexColor(merged.wheelStyle.centerFillColor) ? merged.wheelStyle.centerFillColor : defaultConfig.wheelStyle.centerFillColor;
     merged.wheelStyle.centerStrokeColor = isHexColor(merged.wheelStyle.centerStrokeColor) ? merged.wheelStyle.centerStrokeColor : defaultConfig.wheelStyle.centerStrokeColor;
     merged.wheelStyle.pointerColor = isHexColor(merged.wheelStyle.pointerColor) ? merged.wheelStyle.pointerColor : defaultConfig.wheelStyle.pointerColor;
+    merged.raffle.title = String(merged.raffle.title || defaultConfig.raffle.title);
+    merged.raffle.description = String(merged.raffle.description || defaultConfig.raffle.description);
+    merged.raffle.drawAt = String(merged.raffle.drawAt || "");
+    merged.raffle.acceptEntries = merged.raffle.acceptEntries !== false;
+    if (!Array.isArray(merged.raffle.prizes)) {
+      merged.raffle.prizes = clone(defaultConfig.raffle.prizes);
+    }
+    merged.raffle.prizes = merged.raffle.prizes.slice(0, 3).map((name, idx) => String(name || `Prize ${idx + 1}`));
+    while (merged.raffle.prizes.length < 3) {
+      merged.raffle.prizes.push(`Prize ${merged.raffle.prizes.length + 1}`);
+    }
 
     return merged;
   }

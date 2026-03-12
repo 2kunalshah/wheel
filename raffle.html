@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Raffle</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <img id="raffleLogo" class="brand-logo" src="./assets/dw_logo.svg" alt="Degree Wellness logo" />
+        <p class="badge" id="raffleBadge">Live Raffle</p>
+        <h1 id="raffleTitle">Live Raffle</h1>
+        <p id="raffleDescription">Enter for your chance to win.</p>
+        <p id="raffleFranchiseInfo" class="franchise-info"></p>
+      </header>
+
+      <section class="card" id="raffleEntrySection">
+        <h2 class="section-title">Enter Raffle</h2>
+        <form id="raffleForm" class="lead-form" novalidate>
+          <label class="full-width">
+            Full Name
+            <input id="raffleName" type="text" autocomplete="off" required />
+          </label>
+          <label class="full-width">
+            Email Address
+            <input id="raffleEmail" type="email" autocomplete="off" required />
+          </label>
+          <label class="full-width">
+            Phone Number
+            <input id="rafflePhone" type="tel" autocomplete="off" required />
+          </label>
+        </form>
+        <button id="raffleSubmitBtn" class="btn btn-primary" type="button">Submit Entry</button>
+        <p id="raffleFormMessage" class="success-message" aria-live="polite"></p>
+      </section>
+
+      <section class="card" id="raffleStatusSection">
+        <h2 class="section-title">Raffle Status</h2>
+        <p id="raffleStatusText" class="hint">Waiting for entries...</p>
+        <div class="table-wrap">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>Prize</th>
+                <th>Winner</th>
+              </tr>
+            </thead>
+            <tbody id="raffleWinnersBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="footer-note">
+        <a href="./admin.html">Admin Configuration</a>
+      </footer>
+    </main>
+
+    <script src="./shared.js"></script>
+    <script src="./raffle.js"></script>
+  </body>
+</html>

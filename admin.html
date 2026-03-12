@@ -172,6 +172,64 @@
       </section>
 
       <section class="card">
+        <h2 class="section-title">Raffle Setup</h2>
+        <p class="hint">Configure a live raffle page and draw 3 winners from captured raffle entries.</p>
+        <div class="grid two-col">
+          <label class="full-width">
+            Raffle Title
+            <input id="cfgRaffleTitle" type="text" />
+          </label>
+          <label class="full-width">
+            Raffle Description
+            <input id="cfgRaffleDescription" type="text" />
+          </label>
+          <label>
+            Prize 1
+            <input id="cfgRafflePrize1" type="text" />
+          </label>
+          <label>
+            Prize 2
+            <input id="cfgRafflePrize2" type="text" />
+          </label>
+          <label>
+            Prize 3
+            <input id="cfgRafflePrize3" type="text" />
+          </label>
+          <label>
+            Raffle Draw Time (optional)
+            <input id="cfgRaffleDrawAt" type="datetime-local" />
+          </label>
+          <label class="checkbox full-width">
+            <input id="cfgRaffleAcceptEntries" type="checkbox" /> Accept new raffle entries
+          </label>
+          <label class="full-width">
+            Raffle Page URL
+            <input id="cfgRaffleUrl" type="url" placeholder="https://yourdomain.com/raffle.html" />
+          </label>
+        </div>
+        <p class="hint">Franchise raffle URL: <span id="raffleTargetUrl"></span></p>
+        <div class="button-row">
+          <button id="runRaffleBtn" type="button" class="btn btn-accent">Run Raffle Draw</button>
+          <button id="resetRaffleBtn" type="button" class="btn btn-secondary">Reset Raffle</button>
+          <button id="exportRaffleEntriesBtn" type="button" class="btn btn-secondary">Export Raffle Entries CSV</button>
+        </div>
+        <p id="raffleSummary" class="hint"></p>
+        <div class="table-wrap">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>Prize</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+              </tr>
+            </thead>
+            <tbody id="raffleWinnersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
         <h2 class="section-title">Participant Prize Lookup</h2>
         <div class="grid two-col">
           <label class="full-width">
@@ -247,6 +305,8 @@
 
       <footer class="footer-note">
         <a href="./index.html">Back To Player View</a>
+        <span> | </span>
+        <a href="./raffle.html">Open Raffle Page</a>
       </footer>
     </main>
 
