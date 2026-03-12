@@ -20,6 +20,7 @@
     submitBtn: document.getElementById("raffleSubmitBtn"),
     formMessage: document.getElementById("raffleFormMessage"),
     statusText: document.getElementById("raffleStatusText"),
+    prizeGallery: document.getElementById("rafflePrizeGallery"),
     winnersBody: document.getElementById("raffleWinnersBody"),
   };
 
@@ -136,6 +137,8 @@
         refs.statusText.textContent = `${entriesCount} entries so far. Winners will appear here once the draw is run.`;
       }
 
+      renderPrizeGallery(raffleConfig.prizes || []);
+
       refs.submitBtn.disabled = raffleConfig.acceptEntries === false;
       if (raffleConfig.acceptEntries === false && !drawnAt) {
         refs.formMessage.textContent = "Raffle entries are currently closed.";
@@ -171,6 +174,23 @@
       .replace(/>/g, "&gt;")
       .replace(/\"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  function renderPrizeGallery(prizes) {
+    if (!refs.prizeGallery) return;
+    const items = Array.isArray(prizes) ? prizes : [];
+    refs.prizeGallery.innerHTML = items.length
+      ? items
+          .map((prize) => {
+            const name = prize && prize.name ? prize.name : "Prize";
+            const image = prize && prize.imageUrl ? prize.imageUrl : "";
+            return `<div class="raffle-prize-card">
+              <div class="raffle-prize-media">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" />` : `<div class="raffle-prize-placeholder">Prize</div>`}</div>
+              <div class="raffle-prize-name">${escapeHtml(name)}</div>
+            </div>`;
+          })
+          .join("")
+      : "";
   }
 
   async function handleScan(event) {
