@@ -164,6 +164,29 @@ function shuffle(array) {
   return next;
 }
 
+function seedRaffleEntries(franchiseId, count) {
+  const raffle = readRaffle(franchiseId);
+  if (raffle.entries.length) return;
+  const entries = [];
+  const firstNames = ["Alex", "Jordan", "Taylor", "Casey", "Riley", "Morgan", "Avery", "Jamie", "Cameron", "Quinn", "Skyler", "Reese", "Peyton", "Rowan", "Emerson", "Harper", "Sawyer", "Logan", "Milan", "Ari"];
+  const lastNames = ["Lee", "Morgan", "Patel", "Kim", "Garcia", "Nguyen", "Lopez", "Brown", "Davis", "Wilson", "Clark", "Lewis", "Walker", "Young", "Hall", "Allen", "Scott", "Green", "Baker", "Adams"];
+  for (let i = 0; i < count; i += 1) {
+    const name = `${firstNames[i % firstNames.length]} ${lastNames[(i * 3) % lastNames.length]}`;
+    const email = `dw_user${String(i + 1).padStart(2, "0")}@example.com`;
+    const phone = String(5000000000 + (i * 137) % 9000000000).padStart(10, "5");
+    entries.push({
+      id: `seed_${Date.now()}_${i}_${Math.floor(Math.random() * 100000)}`,
+      franchiseId,
+      enteredAt: new Date().toISOString(),
+      name,
+      email,
+      phone,
+    });
+  }
+  raffle.entries = raffle.entries.concat(entries);
+  writeRaffle(franchiseId, raffle);
+}
+
 function drawRaffleWinners(entries, prizes) {
   const pool = shuffle(entries.filter((entry) => entry && typeof entry === "object"));
   const winners = [];
@@ -402,6 +425,7 @@ async function handleApi(req, res, url) {
         return true;
       }
       writeConfig(franchiseId, payload.baseConfig && typeof payload.baseConfig === "object" ? payload.baseConfig : {});
+      seedRaffleEntries(franchiseId, 25);
       sendJson(res, 201, { ok: true, franchiseId });
       return true;
     } catch (e) {
