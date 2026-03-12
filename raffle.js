@@ -262,13 +262,15 @@
   function parseBusinessCard(text) {
     const cleaned = String(text || "").replace(/\r/g, "");
     const lines = cleaned.split("\n").map((line) => line.trim()).filter(Boolean);
+    const normalized = normalizeOcrText(cleaned);
 
-    const emailMatch = cleaned.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/);
-    const phoneMatch = cleaned.match(/(\\+?\\d[\\d\\s().-]{7,}\\d)/);
+    const emailMatch = normalized.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const phoneMatch = findPhoneNumber(normalized);
 
     let name = "";
     for (const line of lines) {
       if (line.includes("@")) continue;
+      if (/www\.|http/i.test(line)) continue;
       if (/\d/.test(line)) continue;
       if (line.length > 40) continue;
       if (line.length < 3) continue;
@@ -277,7 +279,7 @@
     }
 
     const email = emailMatch ? emailMatch[0] : "";
-    const phone = phoneMatch ? phoneMatch[0].replace(/\\s+/g, " ").trim() : "";
+    const phone = phoneMatch || "";
 
     return {
       name,
@@ -285,5 +287,30 @@
       phone,
       foundAny: Boolean(name || email || phone),
     };
+  }
+
+  function normalizeOcrText(text) {
+    return String(text || "")
+      .replace(/\s*@\s*/g, "@")
+      .replace(/\s*\.\s*/g, ".")
+      .replace(/\s+dot\s+/gi, ".")
+      .replace(/\s+at\s+/gi, "@")
+      .replace(/[|]/g, "l");
+  }
+
+  function findPhoneNumber(text) {
+    const matches = text.match(/(\+?\d[\d\s().-]{7,}\d)/g) || [];
+    for (const match of matches) {
+      const digitsOnly = match.replace(/\D/g, "");
+      if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+        return digitsOnly.length === 11 && digitsOnly.startsWith("1") ? digitsOnly.slice(1) : digitsOnly;
+      }
+    }
+    const fallbackDigits = text.replace(/\D/g, "");
+    if (fallbackDigits.length >= 10) {
+      const last10 = fallbackDigits.slice(-10);
+      return last10;
+    }
+    return "";
   }
 })();
