@@ -187,6 +187,13 @@ function seedRaffleEntries(franchiseId, count) {
   writeRaffle(franchiseId, raffle);
 }
 
+function ensureSeededRaffle(franchiseId) {
+  const raffle = readRaffle(franchiseId);
+  if (!raffle.entries.length) {
+    seedRaffleEntries(franchiseId, 25);
+  }
+}
+
 function drawRaffleWinners(entries, prizes) {
   const pool = shuffle(entries.filter((entry) => entry && typeof entry === "object"));
   const winners = [];
@@ -221,6 +228,7 @@ function ensureTestFranchise() {
     },
   };
   writeConfig(TEST_FRANCHISE_ID, next);
+  ensureSeededRaffle(TEST_FRANCHISE_ID);
 }
 
 function testCatalog() {
@@ -523,6 +531,7 @@ async function handleApi(req, res, url) {
     const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
     const config = readConfig(franchiseId);
     const raffleConfig = raffleConfigFromConfig(config);
+    ensureSeededRaffle(franchiseId);
     const raffle = readRaffle(franchiseId);
     sendJson(res, 200, {
       franchiseId,
@@ -536,6 +545,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/raffle/entries" && req.method === "GET") {
     const franchiseId = safeFranchiseId(url.searchParams.get("franchise"));
+    ensureSeededRaffle(franchiseId);
     const raffle = readRaffle(franchiseId);
     sendJson(res, 200, { franchiseId, count: raffle.entries.length, entries: raffle.entries });
     return true;
@@ -679,6 +689,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 ensureTestFranchise();
+ensureSeededRaffle("default");
 
 server.listen(PORT, () => {
   console.log(`Spin wheel server running at http://localhost:${PORT}`);
