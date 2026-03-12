@@ -46,6 +46,7 @@
     raffleAcceptEntries: document.getElementById("cfgRaffleAcceptEntries"),
     raffleUrl: document.getElementById("cfgRaffleUrl"),
     raffleTargetUrl: document.getElementById("raffleTargetUrl"),
+    raffleQrImage: document.getElementById("raffleQrImage"),
     raffleSummary: document.getElementById("raffleSummary"),
     raffleWinnersTableBody: document.getElementById("raffleWinnersTableBody"),
     raffleEntriesTableBody: document.getElementById("raffleEntriesTableBody"),
@@ -442,6 +443,10 @@
     const base = refs.raffleUrl.value.trim() || `${window.location.origin}/raffle.html`;
     const raffleUrl = store.withFranchiseParam(base, franchiseId);
     refs.raffleTargetUrl.textContent = raffleUrl;
+    const encoded = encodeURIComponent(raffleUrl);
+    if (refs.raffleQrImage) {
+      refs.raffleQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encoded}`;
+    }
     const raffleLink = document.querySelector('.footer-note a[href="./raffle.html"]');
     if (raffleLink) raffleLink.href = `./raffle.html?franchise=${encodeURIComponent(franchiseId)}`;
   }
