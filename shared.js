@@ -53,7 +53,11 @@
       description: "Enter for your chance to win.",
       drawAt: "",
       acceptEntries: true,
-      prizes: ["Grand Prize", "Second Prize", "Third Prize"],
+      prizes: [
+        { name: "Grand Prize", imageUrl: "" },
+        { name: "Second Prize", imageUrl: "" },
+        { name: "Third Prize", imageUrl: "" },
+      ],
     },
   };
 
@@ -144,9 +148,17 @@
     if (!Array.isArray(merged.raffle.prizes)) {
       merged.raffle.prizes = clone(defaultConfig.raffle.prizes);
     }
-    merged.raffle.prizes = merged.raffle.prizes.slice(0, 3).map((name, idx) => String(name || `Prize ${idx + 1}`));
+    merged.raffle.prizes = merged.raffle.prizes.slice(0, 3).map((prize, idx) => {
+      if (typeof prize === "string") {
+        return { name: String(prize || `Prize ${idx + 1}`), imageUrl: "" };
+      }
+      return {
+        name: String((prize && prize.name) || `Prize ${idx + 1}`),
+        imageUrl: prize && typeof prize.imageUrl === "string" ? String(prize.imageUrl).trim() : "",
+      };
+    });
     while (merged.raffle.prizes.length < 3) {
-      merged.raffle.prizes.push(`Prize ${merged.raffle.prizes.length + 1}`);
+      merged.raffle.prizes.push({ name: `Prize ${merged.raffle.prizes.length + 1}`, imageUrl: "" });
     }
 
     return merged;

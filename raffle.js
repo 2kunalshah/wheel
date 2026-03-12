@@ -146,11 +146,12 @@
             .map(
               (winner) => `<tr>
                 <td>${escapeHtml(winner.prize || "")}</td>
+                <td>${winner.prizeImageUrl ? `<img class="raffle-prize-image" src="${escapeHtml(winner.prizeImageUrl)}" alt="Prize image" />` : "—"}</td>
                 <td>${escapeHtml(winner.name || "")}</td>
               </tr>`
             )
             .join("")
-        : `<tr><td colspan="2">No winners yet.</td></tr>`;
+        : `<tr><td colspan="3">No winners yet.</td></tr>`;
     } catch (error) {
       refs.statusText.textContent = "Could not load raffle status.";
       refs.winnersBody.innerHTML = `<tr><td colspan="4">Status unavailable.</td></tr>`;

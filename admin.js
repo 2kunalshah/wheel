@@ -42,6 +42,9 @@
     rafflePrize1: document.getElementById("cfgRafflePrize1"),
     rafflePrize2: document.getElementById("cfgRafflePrize2"),
     rafflePrize3: document.getElementById("cfgRafflePrize3"),
+    rafflePrize1Image: document.getElementById("cfgRafflePrize1Image"),
+    rafflePrize2Image: document.getElementById("cfgRafflePrize2Image"),
+    rafflePrize3Image: document.getElementById("cfgRafflePrize3Image"),
     raffleDrawAt: document.getElementById("cfgRaffleDrawAt"),
     raffleAcceptEntries: document.getElementById("cfgRaffleAcceptEntries"),
     raffleUrl: document.getElementById("cfgRaffleUrl"),
@@ -141,9 +144,12 @@
     refs.wheelCenterStrokeColor.value = config.wheelStyle.centerStrokeColor;
     refs.raffleTitle.value = (config.raffle && config.raffle.title) || "Live Raffle";
     refs.raffleDescription.value = (config.raffle && config.raffle.description) || "Enter for your chance to win.";
-    refs.rafflePrize1.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[0]) || "Prize 1";
-    refs.rafflePrize2.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[1]) || "Prize 2";
-    refs.rafflePrize3.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[2]) || "Prize 3";
+    refs.rafflePrize1.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[0] && config.raffle.prizes[0].name) || "Prize 1";
+    refs.rafflePrize2.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[1] && config.raffle.prizes[1].name) || "Prize 2";
+    refs.rafflePrize3.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[2] && config.raffle.prizes[2].name) || "Prize 3";
+    refs.rafflePrize1Image.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[0] && config.raffle.prizes[0].imageUrl) || "";
+    refs.rafflePrize2Image.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[1] && config.raffle.prizes[1].imageUrl) || "";
+    refs.rafflePrize3Image.value = (config.raffle && config.raffle.prizes && config.raffle.prizes[2] && config.raffle.prizes[2].imageUrl) || "";
     refs.raffleAcceptEntries.checked = !(config.raffle && config.raffle.acceptEntries === false);
     refs.raffleDrawAt.value = toDateTimeLocal(config.raffle && config.raffle.drawAt);
     refs.raffleUrl.value = config.raffleUrl || "";
@@ -387,9 +393,9 @@
     config.raffle.title = refs.raffleTitle.value.trim() || "Live Raffle";
     config.raffle.description = refs.raffleDescription.value.trim() || "Enter for your chance to win.";
     config.raffle.prizes = [
-      refs.rafflePrize1.value.trim() || "Prize 1",
-      refs.rafflePrize2.value.trim() || "Prize 2",
-      refs.rafflePrize3.value.trim() || "Prize 3",
+      { name: refs.rafflePrize1.value.trim() || "Prize 1", imageUrl: refs.rafflePrize1Image.value.trim() },
+      { name: refs.rafflePrize2.value.trim() || "Prize 2", imageUrl: refs.rafflePrize2Image.value.trim() },
+      { name: refs.rafflePrize3.value.trim() || "Prize 3", imageUrl: refs.rafflePrize3Image.value.trim() },
     ];
     config.raffle.drawAt = fromDateTimeLocal(refs.raffleDrawAt.value);
     config.raffle.acceptEntries = refs.raffleAcceptEntries.checked;
@@ -506,13 +512,14 @@
           .map(
             (winner) => `<tr>
               <td>${escapeHtml(winner.prize || "")}</td>
+              <td>${winner.prizeImageUrl ? `<img class="raffle-prize-image" src="${escapeHtml(winner.prizeImageUrl)}" alt="Prize image" />` : "—"}</td>
               <td>${escapeHtml(winner.name || "")}</td>
               <td>${escapeHtml(winner.email || "")}</td>
               <td>${escapeHtml(winner.phone || "")}</td>
             </tr>`
           )
           .join("")
-      : `<tr><td colspan="4">No winners selected yet.</td></tr>`;
+      : `<tr><td colspan="5">No winners selected yet.</td></tr>`;
   }
 
   async function runRaffleDraw() {

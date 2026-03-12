@@ -328,6 +328,14 @@ select {
   box-shadow: 0 8px 20px rgba(12, 16, 28, 0.15);
 }
 
+.raffle-prize-image {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #d5dddb;
+}
+
 @media (max-width: 900px) {
   .two-col,
   .three-col {

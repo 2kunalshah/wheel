@@ -144,8 +144,16 @@ function raffleConfigFromConfig(config) {
   const cfg = config && typeof config === "object" ? config : {};
   const raffle = cfg.raffle && typeof cfg.raffle === "object" ? cfg.raffle : {};
   const prizes = Array.isArray(raffle.prizes) ? raffle.prizes : [];
-  const normalizedPrizes = prizes.slice(0, 3).map((prize, idx) => String(prize || `Prize ${idx + 1}`));
-  while (normalizedPrizes.length < 3) normalizedPrizes.push(`Prize ${normalizedPrizes.length + 1}`);
+  const normalizedPrizes = prizes.slice(0, 3).map((prize, idx) => {
+    if (typeof prize === "string") {
+      return { name: String(prize || `Prize ${idx + 1}`), imageUrl: "" };
+    }
+    return {
+      name: String((prize && prize.name) || `Prize ${idx + 1}`),
+      imageUrl: prize && typeof prize.imageUrl === "string" ? String(prize.imageUrl).trim() : "",
+    };
+  });
+  while (normalizedPrizes.length < 3) normalizedPrizes.push({ name: `Prize ${normalizedPrizes.length + 1}`, imageUrl: "" });
   return {
     title: String(raffle.title || "Live Raffle"),
     description: String(raffle.description || "Enter for your chance to win."),
@@ -201,7 +209,8 @@ function drawRaffleWinners(entries, prizes) {
     if (!pool.length) break;
     const entry = pool.shift();
     winners.push({
-      prize: prizes[i],
+      prize: prizes[i] && prizes[i].name ? prizes[i].name : String(prizes[i] || ""),
+      prizeImageUrl: prizes[i] && prizes[i].imageUrl ? prizes[i].imageUrl : "",
       name: String(entry.name || ""),
       email: String(entry.email || ""),
       phone: String(entry.phone || ""),
