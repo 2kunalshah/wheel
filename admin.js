@@ -48,6 +48,7 @@
     raffleTargetUrl: document.getElementById("raffleTargetUrl"),
     raffleSummary: document.getElementById("raffleSummary"),
     raffleWinnersTableBody: document.getElementById("raffleWinnersTableBody"),
+    raffleEntriesTableBody: document.getElementById("raffleEntriesTableBody"),
     qrImage: document.getElementById("qrImage"),
     qrTargetUrl: document.getElementById("qrTargetUrl"),
     leadSearchInput: document.getElementById("leadSearchInput"),
@@ -83,6 +84,7 @@
     hydrateForm();
     await refreshLeadsLookup();
     await refreshRaffleStatus();
+    await refreshRaffleEntries();
     await loadTests();
   }
 
@@ -465,6 +467,33 @@
     }
   }
 
+  async function refreshRaffleEntries() {
+    try {
+      const response = await fetch(`/api/raffle/entries?franchise=${encodeURIComponent(franchiseId)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const entries = Array.isArray(payload.entries) ? payload.entries : [];
+      renderRaffleEntries(entries);
+    } catch (error) {
+      refs.raffleEntriesTableBody.innerHTML = `<tr><td colspan="4">Could not load raffle entries.</td></tr>`;
+    }
+  }
+
+  function renderRaffleEntries(entries) {
+    refs.raffleEntriesTableBody.innerHTML = entries.length
+      ? entries
+          .map(
+            (entry) => `<tr>
+              <td>${escapeHtml(formatCapturedAt(entry.enteredAt))}</td>
+              <td>${escapeHtml(entry.name || "")}</td>
+              <td>${escapeHtml(entry.email || "")}</td>
+              <td>${escapeHtml(entry.phone || "")}</td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4">No raffle entries yet.</td></tr>`;
+  }
+
   function renderRaffleWinners() {
     const winners = raffleStatus.winners || [];
     refs.raffleWinnersTableBody.innerHTML = winners.length
@@ -490,6 +519,7 @@
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       await refreshRaffleStatus();
+      await refreshRaffleEntries();
       setMessage(`Raffle draw completed for '${franchiseId}'.`);
     } catch (error) {
       setMessage("Raffle draw failed.");
@@ -505,6 +535,7 @@
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       await refreshRaffleStatus();
+      await refreshRaffleEntries();
       setMessage(`Raffle reset for '${franchiseId}'.`);
     } catch (error) {
       setMessage("Could not reset raffle.");
@@ -526,6 +557,7 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      await refreshRaffleEntries();
       setMessage(`Downloaded ${payload.count} raffle entries for '${franchiseId}'.`);
     } catch (error) {
       setMessage("Raffle export failed.");
