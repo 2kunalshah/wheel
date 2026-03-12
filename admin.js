@@ -7,10 +7,18 @@
   let leadsCache = [];
   let testsCache = [];
   let raffleStatus = { entriesCount: 0, winners: [], drawnAt: "" };
+  let adminAuthToken = "";
+  let adminProfile = null;
 
   const messageEl = document.getElementById("adminMessage");
   const fieldsEditor = document.getElementById("fieldsEditor");
   const prizeEditor = document.getElementById("prizeEditor");
+  const adminApp = document.getElementById("adminApp");
+  const adminAuthGate = document.getElementById("adminAuthGate");
+  const adminLoginButton = document.getElementById("adminLoginButton");
+  const adminLoginStatus = document.getElementById("adminLoginStatus");
+  const adminLogoutBtn = document.getElementById("adminLogoutBtn");
+  const adminUserLabel = document.getElementById("adminUserLabel");
 
   const refs = {
     franchiseSelect: document.getElementById("cfgFranchiseSelect"),
@@ -62,7 +70,7 @@
     testSummary: document.getElementById("testSummary"),
   };
 
-  bootstrap();
+  initAdminAuth();
 
   document.getElementById("createFranchiseBtn").addEventListener("click", createFranchise);
   refs.franchiseSelect.addEventListener("change", switchFranchise);
@@ -81,6 +89,7 @@
   refs.publicUrl.addEventListener("input", renderQr);
   refs.raffleUrl.addEventListener("input", renderRaffleLink);
   refs.leadSearchInput.addEventListener("input", renderLeadsTable);
+  adminLogoutBtn.addEventListener("click", handleLogout);
 
   async function bootstrap() {
     await syncConfigFromServer();
@@ -92,9 +101,123 @@
     await loadTests();
   }
 
+  async function initAdminAuth() {
+    adminAuthToken = localStorage.getItem("spinwheel.admin.token") || "";
+    adminProfile = safeParse(localStorage.getItem("spinwheel.admin.profile")) || null;
+    updateAdminUserLabel();
+
+    const config = await fetchAuthConfig();
+    if (!config || !config.clientId) {
+      adminAuthGate.classList.add("hidden");
+      adminApp.classList.remove("hidden");
+      if (adminLoginStatus) {
+        adminLoginStatus.textContent = "Google client ID not configured. Set GOOGLE_CLIENT_ID to enable login.";
+      }
+      bootstrap();
+      return;
+    }
+
+    if (adminAuthToken) {
+      adminAuthGate.classList.add("hidden");
+      adminApp.classList.remove("hidden");
+      bootstrap();
+      return;
+    }
+
+    adminApp.classList.add("hidden");
+    adminAuthGate.classList.remove("hidden");
+    if (adminLoginStatus) {
+      adminLoginStatus.textContent = "Use your Google account to sign in.";
+    }
+
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      window.google.accounts.id.initialize({
+        client_id: config.clientId,
+        callback: handleGoogleCredential,
+      });
+      window.google.accounts.id.renderButton(adminLoginButton, {
+        theme: "outline",
+        size: "large",
+        width: 260,
+      });
+    } else {
+      adminLoginStatus.textContent = "Google login library failed to load.";
+    }
+  }
+
+  async function fetchAuthConfig() {
+    try {
+      const response = await fetch("/api/auth/google-config");
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function handleGoogleCredential(response) {
+    if (!response || !response.credential) {
+      adminLoginStatus.textContent = "Google sign-in failed. Try again.";
+      return;
+    }
+    adminAuthToken = response.credential;
+    adminProfile = parseJwtProfile(response.credential);
+    localStorage.setItem("spinwheel.admin.token", adminAuthToken);
+    localStorage.setItem("spinwheel.admin.profile", JSON.stringify(adminProfile || {}));
+    updateAdminUserLabel();
+    adminAuthGate.classList.add("hidden");
+    adminApp.classList.remove("hidden");
+    bootstrap();
+  }
+
+  function handleLogout() {
+    adminAuthToken = "";
+    adminProfile = null;
+    localStorage.removeItem("spinwheel.admin.token");
+    localStorage.removeItem("spinwheel.admin.profile");
+    adminApp.classList.add("hidden");
+    adminAuthGate.classList.remove("hidden");
+    if (adminLoginStatus) {
+      adminLoginStatus.textContent = "Signed out. Please sign in.";
+    }
+  }
+
+  function updateAdminUserLabel() {
+    if (!adminUserLabel) return;
+    if (adminProfile && (adminProfile.name || adminProfile.email)) {
+      adminUserLabel.textContent = `Signed in as ${adminProfile.name || adminProfile.email}`;
+    } else {
+      adminUserLabel.textContent = "";
+    }
+  }
+
+  function parseJwtProfile(token) {
+    try {
+      const payload = token.split(".")[1];
+      const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+      return { name: decoded.name, email: decoded.email, picture: decoded.picture };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function safeParse(raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function apiFetch(url, options = {}) {
+    const headers = Object.assign({}, options.headers || {});
+    if (adminAuthToken) headers.Authorization = `Bearer ${adminAuthToken}`;
+    return fetch(url, Object.assign({}, options, { headers }));
+  }
+
   async function syncConfigFromServer() {
     try {
-      const response = await fetch(`/api/config?franchise=${encodeURIComponent(franchiseId)}`);
+      const response = await apiFetch(`/api/config?franchise=${encodeURIComponent(franchiseId)}`);
       if (!response.ok) return;
       const payload = await response.json();
       if (payload && payload.config && typeof payload.config === "object") {
@@ -107,7 +230,7 @@
 
   async function syncFranchiseCatalogFromServer() {
     try {
-      const response = await fetch("/api/franchises");
+      const response = await apiFetch("/api/franchises");
       if (!response.ok) return;
       const payload = await response.json();
       if (payload && Array.isArray(payload.franchises)) {
@@ -209,7 +332,7 @@
     }
 
     try {
-      const response = await fetch("/api/franchises", {
+      const response = await apiFetch("/api/franchises", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ franchiseId: newId, baseConfig }),
@@ -418,7 +541,7 @@
 
   async function persistConfigToServer(nextConfig) {
     try {
-      const response = await fetch("/api/config", {
+      const response = await apiFetch("/api/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ franchiseId, config: nextConfig }),
@@ -459,7 +582,7 @@
 
   async function refreshRaffleStatus() {
     try {
-      const response = await fetch(`/api/raffle/status?franchise=${encodeURIComponent(franchiseId)}`);
+      const response = await apiFetch(`/api/raffle/status?franchise=${encodeURIComponent(franchiseId)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       raffleStatus = {
@@ -480,7 +603,7 @@
 
   async function refreshRaffleEntries() {
     try {
-      const response = await fetch(`/api/raffle/entries?franchise=${encodeURIComponent(franchiseId)}`);
+      const response = await apiFetch(`/api/raffle/entries?franchise=${encodeURIComponent(franchiseId)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       const entries = Array.isArray(payload.entries) ? payload.entries : [];
@@ -524,7 +647,7 @@
 
   async function runRaffleDraw() {
     try {
-      const response = await fetch("/api/raffle/draw", {
+      const response = await apiFetch("/api/raffle/draw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ franchiseId }),
@@ -540,7 +663,7 @@
 
   async function resetRaffle() {
     try {
-      const response = await fetch("/api/raffle/reset", {
+      const response = await apiFetch("/api/raffle/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ franchiseId }),
@@ -556,7 +679,7 @@
 
   async function exportRaffleEntries() {
     try {
-      const response = await fetch(`/api/raffle/entries?franchise=${encodeURIComponent(franchiseId)}`);
+      const response = await apiFetch(`/api/raffle/entries?franchise=${encodeURIComponent(franchiseId)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       if (!(payload.count > 0)) {
@@ -578,7 +701,7 @@
 
   async function refreshLeadsLookup() {
     try {
-      const response = await fetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`);
+      const response = await apiFetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -632,7 +755,7 @@
 
   async function loadTests() {
     try {
-      const response = await fetch("/api/tests");
+      const response = await apiFetch("/api/tests");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       testsCache = Array.isArray(payload.tests) ? payload.tests : [];
@@ -662,7 +785,7 @@
   async function runTests() {
     refs.testSummary.textContent = "Running tests...";
     try {
-      const response = await fetch("/api/tests/run", {
+      const response = await apiFetch("/api/tests/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ franchiseId: testFranchiseId }),
@@ -695,7 +818,7 @@
 
   async function exportLeads() {
     try {
-      const response = await fetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`);
+      const response = await apiFetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -735,7 +858,7 @@
 
   async function clearLeads() {
     try {
-      const response = await fetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`, {
+      const response = await apiFetch(`/api/leads?franchise=${encodeURIComponent(franchiseId)}`, {
         method: "DELETE",
       });
       if (!response.ok) {

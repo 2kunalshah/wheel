@@ -7,12 +7,26 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="app-shell admin-shell">
+    <div id="adminAuthGate" class="auth-gate hidden">
+      <div class="auth-card">
+        <img class="brand-logo" src="./assets/dw_logo.svg" alt="Degree Wellness logo" />
+        <h1>Admin Sign In</h1>
+        <p class="hint">Sign in with Google to access admin settings.</p>
+        <div id="adminLoginButton"></div>
+        <p id="adminLoginStatus" class="hint"></p>
+      </div>
+    </div>
+
+    <main id="adminApp" class="app-shell admin-shell">
       <header class="hero">
         <img class="brand-logo" src="./assets/dw_logo.svg" alt="Degree Wellness logo" />
         <p class="badge">Admin Console</p>
         <h1>Wheel Configuration</h1>
         <p>Configure branding, form fields, prize odds, and QR access.</p>
+        <div class="admin-auth-row">
+          <span id="adminUserLabel" class="hint"></span>
+          <button id="adminLogoutBtn" type="button" class="btn btn-secondary small">Log Out</button>
+        </div>
       </header>
 
       <section class="card">
@@ -340,6 +354,7 @@
     </main>
 
     <script src="./shared.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="./admin.js"></script>
   </body>
 </html>

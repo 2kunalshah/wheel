@@ -6,6 +6,8 @@ const { URL } = require("url");
 const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
 const DATA_ROOT = process.env.DATA_ROOT || (process.env.RAILWAY_ENVIRONMENT ? "/app/data" : path.join(ROOT, "data"));
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const ADMIN_PROTECT_API = String(process.env.ADMIN_PROTECT_API || "").toLowerCase() === "true";
 const LEADS_DIR = path.join(DATA_ROOT, "leads");
 const CONFIGS_DIR = path.join(DATA_ROOT, "configs");
 const RAFFLES_DIR = path.join(DATA_ROOT, "raffles");
@@ -345,6 +347,46 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+async function verifyGoogleToken(token) {
+  if (!token) return false;
+  return new Promise((resolve) => {
+    const https = require("https");
+    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`;
+    https
+      .get(url, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+          data += chunk;
+        });
+        resp.on("end", () => {
+          try {
+            const payload = JSON.parse(data);
+            if (GOOGLE_CLIENT_ID && payload.aud !== GOOGLE_CLIENT_ID) {
+              resolve(false);
+              return;
+            }
+            resolve(Boolean(payload.sub));
+          } catch (error) {
+            resolve(false);
+          }
+        });
+      })
+      .on("error", () => resolve(false));
+  });
+}
+
+async function requireAdminAuth(req, res) {
+  if (!ADMIN_PROTECT_API) return true;
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const ok = await verifyGoogleToken(token);
+  if (!ok) {
+    sendJson(res, 401, { error: "Unauthorized" });
+    return false;
+  }
+  return true;
+}
+
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -405,6 +447,14 @@ function serveStatic(req, res, pathname) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/auth/google-config" && req.method === "GET") {
+    sendJson(res, 200, { clientId: GOOGLE_CLIENT_ID, protectApi: ADMIN_PROTECT_API });
+    return true;
+  }
+
+  if (!(await requireAdminAuth(req, res))) {
+    return true;
+  }
   if (url.pathname === "/api/tests" && req.method === "GET") {
     ensureTestFranchise();
     sendJson(res, 200, {
