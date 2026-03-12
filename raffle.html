@@ -23,6 +23,10 @@
           <input id="scanCardInput" type="file" accept="image/*" capture="environment" class="hidden" />
         </div>
         <p id="scanStatus" class="hint"></p>
+        <details id="ocrDebug" class="hint hidden">
+          <summary>Show scan text</summary>
+          <pre id="ocrText"></pre>
+        </details>
         <form id="raffleForm" class="lead-form" novalidate>
           <label class="full-width">
             Full Name

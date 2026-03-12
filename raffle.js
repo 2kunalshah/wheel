@@ -15,6 +15,8 @@
     scanBtn: document.getElementById("scanCardBtn"),
     scanInput: document.getElementById("scanCardInput"),
     scanStatus: document.getElementById("scanStatus"),
+    ocrDebug: document.getElementById("ocrDebug"),
+    ocrText: document.getElementById("ocrText"),
     submitBtn: document.getElementById("raffleSubmitBtn"),
     formMessage: document.getElementById("raffleFormMessage"),
     statusText: document.getElementById("raffleStatusText"),
@@ -174,6 +176,8 @@
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     refs.scanStatus.textContent = "Scanning business card...";
+    refs.ocrDebug.classList.add("hidden");
+    refs.ocrText.textContent = "";
     refs.scanBtn.disabled = true;
 
     try {
@@ -183,6 +187,10 @@
       if (extracted.email && !refs.email.value) refs.email.value = extracted.email;
       if (extracted.phone && !refs.phone.value) refs.phone.value = extracted.phone;
       refs.scanStatus.textContent = extracted.foundAny ? "Details filled from scan. Please review." : "Scan completed. No details detected.";
+      if (!extracted.foundAny && text) {
+        refs.ocrDebug.classList.remove("hidden");
+        refs.ocrText.textContent = text.trim();
+      }
     } catch (error) {
       refs.scanStatus.textContent = "Could not scan business card.";
     } finally {
@@ -200,8 +208,55 @@
       throw new Error("OCR provider not available");
     }
 
-    const result = await window.Tesseract.recognize(file, "eng", { logger: () => {} });
+    const prepared = await preprocessImage(file);
+    const result = await window.Tesseract.recognize(prepared, "eng", { logger: () => {} });
     return (result && result.data && result.data.text) ? result.data.text : "";
+  }
+
+  async function preprocessImage(file) {
+    const dataUrl = await fileToDataUrl(file);
+    const img = await loadImage(dataUrl);
+    const maxWidth = 1400;
+    const scale = Math.min(1, maxWidth / img.width);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      const boosted = Math.min(255, gray * 1.1 + 10);
+      data[i] = boosted;
+      data[i + 1] = boosted;
+      data[i + 2] = boosted;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    return canvas.toDataURL("image/jpeg", 0.85);
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
   }
 
   function parseBusinessCard(text) {
@@ -215,6 +270,7 @@
     for (const line of lines) {
       if (line.includes("@")) continue;
       if (/\d/.test(line)) continue;
+      if (line.length > 40) continue;
       if (line.length < 3) continue;
       name = line;
       break;
