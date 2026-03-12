@@ -187,7 +187,7 @@
       if (extracted.email && !refs.email.value) refs.email.value = extracted.email;
       if (extracted.phone && !refs.phone.value) refs.phone.value = extracted.phone;
       refs.scanStatus.textContent = extracted.foundAny ? "Details filled from scan. Please review." : "Scan completed. No details detected.";
-      if (!extracted.foundAny && text) {
+      if (text) {
         refs.ocrDebug.classList.remove("hidden");
         refs.ocrText.textContent = text.trim();
       }
