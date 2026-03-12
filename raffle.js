@@ -12,6 +12,9 @@
     name: document.getElementById("raffleName"),
     email: document.getElementById("raffleEmail"),
     phone: document.getElementById("rafflePhone"),
+    scanBtn: document.getElementById("scanCardBtn"),
+    scanInput: document.getElementById("scanCardInput"),
+    scanStatus: document.getElementById("scanStatus"),
     submitBtn: document.getElementById("raffleSubmitBtn"),
     formMessage: document.getElementById("raffleFormMessage"),
     statusText: document.getElementById("raffleStatusText"),
@@ -19,6 +22,8 @@
   };
 
   refs.submitBtn.addEventListener("click", submitEntry);
+  refs.scanBtn.addEventListener("click", () => refs.scanInput.click());
+  refs.scanInput.addEventListener("change", handleScan);
   bootstrap();
   setInterval(refreshStatus, 10000);
 
@@ -163,5 +168,66 @@
       .replace(/>/g, "&gt;")
       .replace(/\"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  async function handleScan(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    refs.scanStatus.textContent = "Scanning business card...";
+    refs.scanBtn.disabled = true;
+
+    try {
+      const text = await recognizeTextFromImage(file);
+      const extracted = parseBusinessCard(text);
+      if (extracted.name && !refs.name.value) refs.name.value = extracted.name;
+      if (extracted.email && !refs.email.value) refs.email.value = extracted.email;
+      if (extracted.phone && !refs.phone.value) refs.phone.value = extracted.phone;
+      refs.scanStatus.textContent = extracted.foundAny ? "Details filled from scan. Please review." : "Scan completed. No details detected.";
+    } catch (error) {
+      refs.scanStatus.textContent = "Could not scan business card.";
+    } finally {
+      refs.scanBtn.disabled = false;
+      refs.scanInput.value = "";
+    }
+  }
+
+  async function recognizeTextFromImage(file) {
+    if (window.RaffleOcrProvider && typeof window.RaffleOcrProvider.recognize === "function") {
+      return window.RaffleOcrProvider.recognize(file);
+    }
+
+    if (!window.Tesseract || typeof window.Tesseract.recognize !== "function") {
+      throw new Error("OCR provider not available");
+    }
+
+    const result = await window.Tesseract.recognize(file, "eng", { logger: () => {} });
+    return (result && result.data && result.data.text) ? result.data.text : "";
+  }
+
+  function parseBusinessCard(text) {
+    const cleaned = String(text || "").replace(/\r/g, "");
+    const lines = cleaned.split("\n").map((line) => line.trim()).filter(Boolean);
+
+    const emailMatch = cleaned.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/);
+    const phoneMatch = cleaned.match(/(\\+?\\d[\\d\\s().-]{7,}\\d)/);
+
+    let name = "";
+    for (const line of lines) {
+      if (line.includes("@")) continue;
+      if (/\d/.test(line)) continue;
+      if (line.length < 3) continue;
+      name = line;
+      break;
+    }
+
+    const email = emailMatch ? emailMatch[0] : "";
+    const phone = phoneMatch ? phoneMatch[0].replace(/\\s+/g, " ").trim() : "";
+
+    return {
+      name,
+      email,
+      phone,
+      foundAny: Boolean(name || email || phone),
+    };
   }
 })();

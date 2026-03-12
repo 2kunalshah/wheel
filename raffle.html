@@ -18,6 +18,11 @@
 
       <section class="card" id="raffleEntrySection">
         <h2 class="section-title">Enter Raffle</h2>
+        <div class="button-row">
+          <button id="scanCardBtn" class="btn btn-secondary" type="button">Scan Business Card</button>
+          <input id="scanCardInput" type="file" accept="image/*" capture="environment" class="hidden" />
+        </div>
+        <p id="scanStatus" class="hint"></p>
         <form id="raffleForm" class="lead-form" novalidate>
           <label class="full-width">
             Full Name
@@ -58,6 +63,7 @@
     </main>
 
     <script src="./shared.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
     <script src="./raffle.js"></script>
   </body>
 </html>
